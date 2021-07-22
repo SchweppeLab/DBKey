@@ -1,0 +1,126 @@
+---
+title: "MSPtoDB"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Packages
+```{r}
+library(RSQLite)
+library(OrgMassSpecR)
+library(stringr)
+library(stringi)
+library(dplyr)
+library(readr)
+library(Rcpp)
+
+```
+
+#Read .msp and build tables 
+```{r}
+## .msp library files
+Library = "Prosit_test.txt"
+
+
+PrositLib <- stri_read_lines(Library)
+PrositLibunlist <- str_flatten(PrositLib)
+
+#Input for library settings 
+
+FragmentationMode = "HCD"
+MassAnalyzer = "IT"
+
+str_replace(PrositLib,"CollisionEnergy","Collision_Energy")
+
+CollisionEnergy <- str_extract(PrositLibunlist,"Collision_energy.....") 
+CollisionEnergy <- gsub("[[:alpha:]]|:|_|=", "", CollisionEnergy)
+
+
+
+Names <- PrositLib[grepl("Name: ", PrositLib, ignore.case = T)]
+Names<- str_replace(Names, "NAME", "Name")
+Names <- str_remove_all(Names, "Name: ")
+
+PrecursorMassKey <- ifelse(grepl("Precursor",PrositLibunlist),"Precursor", "MW")
+PrecursorMasses <- PrositLib[grepl(PrecursorMassKey, PrositLib)]
+PrecursorMasses <- gsub("[[:alpha:]]|:", "", PrecursorMasses)
+
+
+
+peakindexes <- grep("Peaks:|peaks:", PrositLib)+1
+nameindexes <- c(grep("Name: ", PrositLib)[-1]-1, length(PrositLib))
+
+MassBlob <- c() 
+MassBlob <- mapply(function(x) {c(MassBlob, data.frame(x)[1])},x=PeakLists)
+
+IntensityBlob <- c() 
+IntensityBlob <- mapply(function(x) {c(IntensityBlob, data.frame(x)[2])},x=PeakLists)
+
+PeakLists<- (mapply(function(x, y) {PrositLib[x:y]}, x = peakindexes, y = nameindexes))
+PeakLists<- mapply(function(x) {(str_split_fixed(x, "\\t",3))}, x = PeakLists)
+
+
+
+CompoundTable <- data.frame(CompoundId = seq(1, length(Names), by=1), 
+  Formula = c(rep("", length(Names))), 
+  Name = Names,
+  Synonyms = "",
+  Tag = "",
+  Sequence = "",
+  CASId = "",
+  ChemSpider= "",
+  HMDBId= "",
+  KEGGId= "",
+  PubChemID= "",
+  Structure= "",
+  mzCloudID= "",
+  CompoundClass= "",
+  SmilesDescription= "",
+  InChiKey= "")
+
+MassBlob <- mapply(as.raw, MassBlob)
+
+SpectrumTable <- data.frame(
+  SpectrumId = seq(1, length(Names), by=1), 
+  CompoundId = seq(1, length(Names), by=1), 
+  mzCloudURL = "",
+  ScanFilter = "",
+  RetentionTime = 0.0,
+  ScanNumber = 0,#
+  PrecursorMass = PrecursorMasses,
+  NeutralMass= 0,
+  CollisionEnergy= CollisionEnergy,
+  Polarity= "+",
+  FragmentationMode= FragmentationMode,
+  IonizationMode= "ESI",#
+  MassAnalyzer= MassAnalyzer,
+  InstrumentName= "",
+  InstrumentOperator= "",
+  RawFileURL= "",
+  blobMass=  I(MassBlob),
+  #Intensity= blob(IntensityBlob),
+  Accuracy="",
+  Resolution="",
+  Noises="",
+  Flags="",
+  TopPeaks="",
+  Version="",
+  CreationDate="",
+  Curator="",
+  CurationType="",
+  PrecursorIonType="",
+  Acession="")
+
+
+```
+
+#Build DB
+```{r}
+conn <- dbConnect(SQLite(), dbname = "TestLibrary.db")
+dbWriteTable(conn,"CompoundTable", CompoundTable)
+dbWriteTable(conn, "SpectrumTable", SpectrumTable)
+```
+
