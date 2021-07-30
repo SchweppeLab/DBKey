@@ -10,78 +10,126 @@ knitr::opts_chunk$set(echo = TRUE)
 #Packages
 ```{r}
 library(RSQLite)
-library(OrgMassSpecR)
 library(stringr)
 library(stringi)
 library(dplyr)
 library(readr)
-library(Rcpp)
+library(data.table)
+library(purrr)
+library(blob)
+library(OrgMassSpecR)
 
 ```
+
+```{r}
+# Rcpp::cppFunction('List charToRaw_cpp(CharacterVector x) {
+#   int n = x.size();
+#   List l = List(n);
+# 
+#   for (int i = 0; i < n; ++i) {
+#     int nc = LENGTH(x[i]);
+#     RawVector ans = RawVector(nc);
+#     memcpy(RAW(ans), CHAR(x[i]), nc);
+#     l[i] = ans;
+#   }
+#   return l;
+# }')
+
+
+
+
+```
+#Settings
+```{r}
+#library name
+Library = "WholeHumanProteome.msp"
+FragmentationMode = "CID"
+MassAnalyzer = "IT"
+CollisionEnergy = "35"
+
+```
+
+
 
 #Read .msp and build tables 
 ```{r}
 ## .msp library files
-Library = "Prosit_test.txt"
+startime<-Sys.time()
 
-
-PrositLib <- stri_read_lines(Library)
+PrositLib<-readr::read_file(Library)
+PrositLib <- read_lines(PrositLib)
 PrositLibunlist <- str_flatten(PrositLib)
-
-#Input for library settings 
-
-FragmentationMode = "HCD"
-MassAnalyzer = "IT"
-
-str_replace(PrositLib,"CollisionEnergy","Collision_Energy")
-
-CollisionEnergy <- str_extract(PrositLibunlist,"Collision_energy.....") 
-CollisionEnergy <- gsub("[[:alpha:]]|:|_|=", "", CollisionEnergy)
-
 
 
 Names <- PrositLib[grepl("Name: ", PrositLib, ignore.case = T)]
 Names<- str_replace(Names, "NAME", "Name")
 Names <- str_remove_all(Names, "Name: ")
 
-PrecursorMassKey <- ifelse(grepl("Precursor",PrositLibunlist),"Precursor", "MW")
+
+
+getFormula<- function(x) {
+  y<-gsub("[^[:alpha:] ]", "", x)
+  z<-gsub("[[:lower:] ]", "", y)
+  LongFormula<-ConvertPeptide(z)
+  FormulaTxt <- paste0("C",LongFormula$C,"H",LongFormula$H,"N",
+                         LongFormula$N,"O",LongFormula$O, "S",LongFormula$S)
+  return(FormulaTxt)
+}
+
+Formula<-simplify(map(Names, getFormula))
+
+#PrecursorMassKey <- ifelse(grepl("PrecursorMZ:",PrositLibunlist),"PrecursorMZ:", "MW:")
+PrecursorMassKey <-  "MW:"
 PrecursorMasses <- PrositLib[grepl(PrecursorMassKey, PrositLib)]
 PrecursorMasses <- gsub("[[:alpha:]]|:", "", PrecursorMasses)
-
-
 
 peakindexes <- grep("Peaks:|peaks:", PrositLib)+1
 nameindexes <- c(grep("Name: ", PrositLib)[-1]-1, length(PrositLib))
 
-MassBlob <- c() 
-MassBlob <- mapply(function(x) {c(MassBlob, data.frame(x)[1])},x=PeakLists)
 
-IntensityBlob <- c() 
-IntensityBlob <- mapply(function(x) {c(IntensityBlob, data.frame(x)[2])},x=PeakLists)
+dftest <-list()
 
 PeakLists<- (mapply(function(x, y) {PrositLib[x:y]}, x = peakindexes, y = nameindexes))
-PeakLists<- mapply(function(x) {(str_split_fixed(x, "\\t",3))}, x = PeakLists)
+PeakLists<-mapply(function(x) {str_split(unlist(x), "\\t", simplify = T)}, x = PeakLists)
+
+
+getMassBlob <- function(x) {
+  y<-(x[[1]][,1])
+  blob<-as_blob(packBits(numToBits(y)))
+  return(blob)
+  }
 
 
 
-CompoundTable <- data.frame(CompoundId = seq(1, length(Names), by=1), 
-  Formula = c(rep("", length(Names))), 
+getIntBlob <- function(x) {
+  y<-(x[[1]][,2])
+  blob<-as_blob(packBits(numToBits(y)))
+  return(blob)
+}
+
+blobMass<- as_blob(lmap(PeakLists, getMassBlob))
+blobInt<- as_blob(lmap(PeakLists, getIntBlob))
+
+
+
+CompoundTable <- data.frame(
+  CompoundId = as.integer(seq(1, length(Names), by=1)), 
+  Formula = Formula, 
   Name = Names,
   Synonyms = "",
   Tag = "",
   Sequence = "",
   CASId = "",
-  ChemSpider= "",
+  ChemSpiderId= "",
   HMDBId= "",
   KEGGId= "",
-  PubChemID= "",
+  PubChemId= "",
   Structure= "",
-  mzCloudID= "",
+  mzCloudId= as.integer(NA),
   CompoundClass= "",
   SmilesDescription= "",
   InChiKey= "")
 
-MassBlob <- mapply(as.raw, MassBlob)
 
 SpectrumTable <- data.frame(
   SpectrumId = seq(1, length(Names), by=1), 
@@ -95,18 +143,18 @@ SpectrumTable <- data.frame(
   CollisionEnergy= CollisionEnergy,
   Polarity= "+",
   FragmentationMode= FragmentationMode,
-  IonizationMode= "ESI",#
+  IonizationMode= "ESI",
   MassAnalyzer= MassAnalyzer,
   InstrumentName= "",
   InstrumentOperator= "",
   RawFileURL= "",
-  blobMass=  I(MassBlob),
-  #Intensity= blob(IntensityBlob),
-  Accuracy="",
-  Resolution="",
-  Noises="",
-  Flags="",
-  TopPeaks="",
+  blobMass=  I(blobMass),
+  blobIntensity= I(blobInt),
+  blobAccuracy="",
+  blobResolution="",
+  blobNoises="",
+  blobFlags="",
+  blobTopPeaks="",
   Version="",
   CreationDate="",
   Curator="",
@@ -114,13 +162,56 @@ SpectrumTable <- data.frame(
   PrecursorIonType="",
   Acession="")
 
+HeaderTable <- data.frame(
+  version = 1, 
+  CreationDate = "", 
+  LastModifiedDate = "",
+  Description = "",
+  Company = "",
+  ReadOnly = "",
+  UserAccess = "",
+  PartialEdits= "")
 
+MaintenanceTable <- data.frame(
+  CreationDate ="",
+  NoofCompoundsModified="",
+  Description=""
+  
+)
+
+
+conn3 <- dbConnect(SQLite(), dbname = "TestLibrary3.db")
+
+dbWriteTable(conn3,"CompoundTable", CompoundTable, overwrite = T, field.types = c(CompoundId="INTEGER PRIMARY KEY", Synonyms="BLOB_TEXT", Structure="BLOB_TEXT"))
+
+dbWriteTable(conn3, "SpectrumTable", SpectrumTable, overwrite = T, field.types = c( SpectrumId = "INTEGER PRIMARY KEY", CompoundId ="INTEGER REFERENCES [CompoundTable]", blobMass="BLOB", blobIntensity="BLOB", RetentionTime = "DOUBLE", ScanNumber ="INTEGER", PrecursorMass="DOUBLE", NeutralMass="DOUBLE", blobAccuracy = "BLOB",blobFlags = "BLOB",blobResolution = "BLOB",blobNoises = "BLOB",blobTopPeaks = "BLOB", Version = "INTEGER"))
+
+dbWriteTable(conn3, "HeaderTable", HeadTable, overwrite = T, fied.types = c(ReadOnly = "BOOL", PartialEdits = "BOOL"))
+
+dbWriteTable(conn3, "MaintenanceTable", MaintenanceTable, overwrite = T, field.types = c(NoofCompoundsModified = "INTEGER"))
+
+closeAllConnections()
+
+endtime <- Sys.time()
+endtime-startime
 ```
 
 #Build DB
 ```{r}
-conn <- dbConnect(SQLite(), dbname = "TestLibrary.db")
-dbWriteTable(conn,"CompoundTable", CompoundTable)
-dbWriteTable(conn, "SpectrumTable", SpectrumTable)
+conn1 <- dbConnect(SQLite(), dbname = "TestLibrary2.db")
+dbWriteTable(conn1,"CompoundTable", CompoundTable, overwrite = T, field.types = c(CompoundId="INTEGER PRIMARY KEY", Synonyms="BLOB_TEXT", Structure="BLOB_TEXT"))
+dbWriteTable(conn1, "SpectrumTable", SpectrumTable, overwrite = T, field.types = c( SpectrumId = "INTEGER PRIMARY KEY", CompoundId ="INTEGER REFERENCES [CompoundTable]", blobMass="BLOB", blobIntensity="BLOB", RetentionTime = "DOUBLE", ScanNumber ="INTEGER", PrecursorMass="DOUBLE", NeutralMass="DOUBLE", blobAccuracy = "BLOB",blobFlags = "BLOB",blobResolution = "BLOB",blobNoises = "BLOB",blobTopPeaks = "BLOB", Version = "INTEGER"))
+dbWriteTable(conn1, "HeaderTable", HeadTable, overwrite = T)
+dbWriteTable(conn1, "MaintenanceTable", MaintenanceTable, overwrite = T)
+
+closeAllConnections()
+
+conn2 <- dbConnect(SQLite(), dbname = "empirical_hypro_it_cid_3run_fullyworking.db")
+HeadTable <- dbReadTable(conn2, "HeaderTable")
+MaintTable <- dbReadTable(conn2, "MaintenanceTable")
+CompTable <- dbReadTable(conn2, "CompoundTable")
+SpecTable <- dbReadTable(conn2, "SpectrumTable")
+
 ```
 
+data.table
