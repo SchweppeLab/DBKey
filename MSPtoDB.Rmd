@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(RSQLite)
 library(stringr)
+library(Rcpp)
 library(stringi)
 library(dplyr)
 library(readr)
@@ -22,22 +23,11 @@ library(OrgMassSpecR)
 ```
 
 ```{r}
-# Rcpp::cppFunction('List charToRaw_cpp(CharacterVector x) {
-#   int n = x.size();
-#   List l = List(n);
-# 
-#   for (int i = 0; i < n; ++i) {
-#     int nc = LENGTH(x[i]);
-#     RawVector ans = RawVector(nc);
-#     memcpy(RAW(ans), CHAR(x[i]), nc);
-#     l[i] = ans;
-#   }
-#   return l;
-# }')
 
-
-
-
+sourceCpp(file="CppforR.cpp")
+sourceCpp(file="read-file.cpp")
+sourceCpp(file="string_split.cpp")
+#sourceCpp(file="split.cpp")
 ```
 #Settings
 ```{r}
@@ -54,52 +44,92 @@ CollisionEnergy = "35"
 #Read .msp and build tables 
 ```{r}
 ## .msp library files
-startime<-Sys.time()
+#PrositLib<- read_file_cpp2(Library)
 
-PrositLib<-readr::read_file(Library)
-PrositLib <- read_lines(PrositLib)
-PrositLibunlist <- str_flatten(PrositLib)
+PrositLib<- read_lines(Library)
+#PrositLib<-PrositLib[1:1000000]
 
+#PrositLib<-str_split(PrositLib, "\\n", simplify = T)
 
-Names <- PrositLib[grepl("Name: ", PrositLib, ignore.case = T)]
-Names<- str_replace(Names, "NAME", "Name")
+#Names <- PrositLib[grepl("Name: ", PrositLib, fixed = T)]
+Names<- PrositLib[stri_detect_fixed(PrositLib, "Name: ")]
+
+#Names<- str_replace(Names, "NAME", "Name")
 Names <- str_remove_all(Names, "Name: ")
+Charge<-as.numeric(str_sub(Names,-1 ))
+
+LastAA<-str_sub(Names,-3,-3 )
 
 
+# getFormula<- function(x) {
+#   y<-gsub("[^[:alpha:] ]", "", x)
+#   z<-gsub("[[:lower:] ]", "", y)
+#   LongFormula<-ConvertPeptide(z)
+#   FormulaTxt <- paste0("C",LongFormula$C,"H",LongFormula$H,"N",
+#                          LongFormula$N,"O",LongFormula$O, "S",LongFormula$S)
+#   return(FormulaTxt)
+# }
+# 
+# benchmark(
+#   "map" = {
+#     x<-simplify(map(Names, getFormula))
+# },
+# "lapply1" = {
+#   x<-simplify(lapply1(Names, getFormula))
+#   }
+# )
+# Formula<-simplify(map(Names, getFormula))
+# 
 
-getFormula<- function(x) {
-  y<-gsub("[^[:alpha:] ]", "", x)
-  z<-gsub("[[:lower:] ]", "", y)
-  LongFormula<-ConvertPeptide(z)
-  FormulaTxt <- paste0("C",LongFormula$C,"H",LongFormula$H,"N",
-                         LongFormula$N,"O",LongFormula$O, "S",LongFormula$S)
-  return(FormulaTxt)
-}
-
-Formula<-simplify(map(Names, getFormula))
-
-#PrecursorMassKey <- ifelse(grepl("PrecursorMZ:",PrositLibunlist),"PrecursorMZ:", "MW:")
 PrecursorMassKey <-  "MW:"
-PrecursorMasses <- PrositLib[grepl(PrecursorMassKey, PrositLib)]
+PrecursorMasses <- PrositLib[stri_detect_fixed(PrositLib, PrecursorMassKey)]
 PrecursorMasses <- gsub("[[:alpha:]]|:", "", PrecursorMasses)
 
-peakindexes <- grep("Peaks:|peaks:", PrositLib)+1
-nameindexes <- c(grep("Name: ", PrositLib)[-1]-1, length(PrositLib))
+#peakindexes <- grep("peaks:", PrositLib, fixed = T,)+1
+peakindexes<-which(stri_detect_fixed(PrositLib,"peaks:"))+1
+
+#nameindexes <- c(grep("Name: ", PrositLib,fixed = T)[-1]-1,  length(PrositLib))
+nameindexes<-c(which(stri_detect_fixed(PrositLib,"Name: "))[-1]-1,length(PrositLib))
 
 
-dftest <-list()
 
 PeakLists<- (mapply(function(x, y) {PrositLib[x:y]}, x = peakindexes, y = nameindexes))
-PeakLists<-mapply(function(x) {str_split(unlist(x), "\\t", simplify = T)}, x = PeakLists)
+PeakLists<-mapply(function(x) {str_split(PeakLists[[x]], "\\t", simplify = T)}, x = seq(from=1,to=length(PeakLists), by=1))
+names(PeakLists)<-LastAA
 
+#PeakLists<-mapply(function(x) {str_split(unlist(x), "\\t", simplify = T)}, x = PeakLists)
+
+
+PrositLib<-NULL
+peakindexes<-NULL
+nameindexes<-NULL
 
 getMassBlob <- function(x) {
+  
+  
   y<-(x[[1]][,1])
   blob<-as_blob(packBits(numToBits(y)))
   return(blob)
   }
 
-
+getMassBlobTMTpro <- function(x) {
+  TMTPro<-304.207146
+  isK<- names(x) == "K"
+  masses<-as.numeric(x[[1]][,1])
+  frag<-(x[[1]][,3])
+  fragcharge<-str_extract_all(frag,"\\^.",simplify = T)
+  fragcharge[fragcharge==""] <-1
+  fragcharge[!fragcharge==""]<-as.numeric(str_remove(fragcharge,"\\^"))
+  isBion<-stri_detect_fixed(frag,"b")
+ 
+  dt<-data.table(masses,as.numeric(fragcharge),isBion)
+  dt$masses[dt$isBion]<-dt$masses[dt$isBion]+TMTPro/dt$V2[dt$isBion]
+  dt$masses[isK & !dt$isBion] <- dt$masses[!dt$isBion]+TMTPro/dt$V2[!dt$isBion]
+  
+  
+ blob<-as_blob(packBits(numToBits(dt$masses)))
+  return(blob)
+}
 
 getIntBlob <- function(x) {
   y<-(x[[1]][,2])
@@ -107,14 +137,14 @@ getIntBlob <- function(x) {
   return(blob)
 }
 
-blobMass<- as_blob(lmap(PeakLists, getMassBlob))
+blobMass<- as_blob(lmap(PeakLists, getMassBlobTMTpro))
 blobInt<- as_blob(lmap(PeakLists, getIntBlob))
 
+PeakLists<-NULL
 
-
-CompoundTable <- data.frame(
+CompoundTable <- data.table(
   CompoundId = as.integer(seq(1, length(Names), by=1)), 
-  Formula = Formula, 
+  Formula = "", 
   Name = Names,
   Synonyms = "",
   Tag = "",
@@ -131,7 +161,7 @@ CompoundTable <- data.frame(
   InChiKey= "")
 
 
-SpectrumTable <- data.frame(
+SpectrumTable <- data.table(
   SpectrumId = seq(1, length(Names), by=1), 
   CompoundId = seq(1, length(Names), by=1), 
   mzCloudURL = "",
@@ -163,37 +193,37 @@ SpectrumTable <- data.frame(
   Acession="")
 
 HeaderTable <- data.frame(
-  version = 1, 
-  CreationDate = "", 
-  LastModifiedDate = "",
-  Description = "",
-  Company = "",
-  ReadOnly = "",
-  UserAccess = "",
-  PartialEdits= "")
+  version = 5, 
+  CreationDate = NA, 
+  LastModifiedDate = NA,
+  Description = NA,
+  Company = NA,
+  ReadOnly = NA,
+  UserAccess = NA,
+  PartialEdits= NA)
 
 MaintenanceTable <- data.frame(
-  CreationDate ="",
-  NoofCompoundsModified="",
-  Description=""
+  CreationDate =NA,
+  NoofCompoundsModified=NA,
+  Description=NA
   
 )
 
 
-conn3 <- dbConnect(SQLite(), dbname = "TestLibrary3.db")
+conn3 <- dbConnect(SQLite(), dbname = "TestLibrary5.db")
 
 dbWriteTable(conn3,"CompoundTable", CompoundTable, overwrite = T, field.types = c(CompoundId="INTEGER PRIMARY KEY", Synonyms="BLOB_TEXT", Structure="BLOB_TEXT"))
 
 dbWriteTable(conn3, "SpectrumTable", SpectrumTable, overwrite = T, field.types = c( SpectrumId = "INTEGER PRIMARY KEY", CompoundId ="INTEGER REFERENCES [CompoundTable]", blobMass="BLOB", blobIntensity="BLOB", RetentionTime = "DOUBLE", ScanNumber ="INTEGER", PrecursorMass="DOUBLE", NeutralMass="DOUBLE", blobAccuracy = "BLOB",blobFlags = "BLOB",blobResolution = "BLOB",blobNoises = "BLOB",blobTopPeaks = "BLOB", Version = "INTEGER"))
 
-dbWriteTable(conn3, "HeaderTable", HeadTable, overwrite = T, fied.types = c(ReadOnly = "BOOL", PartialEdits = "BOOL"))
+dbWriteTable(conn3, "HeaderTable", HeaderTable, overwrite = T, field.types = c(version = "INTEGER NOT NULL DEFAULT 0", CreationDate="TEXT",LastModifiedDate="TEXT", Description="TEXT", Company="TEXT", ReadOnly = "BOOL", UserAccess="TEXT", PartialEdits = "BOOL"))
 
-dbWriteTable(conn3, "MaintenanceTable", MaintenanceTable, overwrite = T, field.types = c(NoofCompoundsModified = "INTEGER"))
+dbWriteTable(conn3, "MaintenanceTable", MaintenanceTable, overwrite = T, field.types = c(CreationDate="TEXT",NoofCompoundsModified = "INTEGER", Description="TEXT"))
 
-closeAllConnections()
+dbDisconnect(conn3)
 
 endtime <- Sys.time()
-endtime-startime
+endtime-start
 ```
 
 #Build DB
