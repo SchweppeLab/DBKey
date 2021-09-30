@@ -22,10 +22,8 @@ library(OrgMassSpecR)
 
 ```
 
-```{r}
-
-```
 #Settings
+For testing library builds, settings in the function
 ```{r}
 #library name
 Library = "DBstuff/yeast_consensus.sptxt"
@@ -39,6 +37,7 @@ TMTPro = TRUE
 
 
 #Read .msp and build tables 
+Function to build and manipulate database files for use with RTLS 
 ```{r}
 
 MSPtoDB <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source) {
@@ -283,7 +282,7 @@ dbDisconnect(conn4)
 }
 ```
 
-
+## Example code
 ```{r}
 MSPtoDB("DBstuff/yeast_consensus.sptxt", "CID", "IT", "35", TRUE, "RTLS Databases/YeastTesting54.db", "SpectraST")
 #MSPtoDB(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source) {
