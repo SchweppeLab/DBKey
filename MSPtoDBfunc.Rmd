@@ -68,7 +68,7 @@ getIntBlob <- function(x) {
 #example: MSPtoDB("test.msp", "CID", "IT", 35, TRUE, "testingfun.db", SpectraST/Prosit )
 
 
-PrositMSPtoDB <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source) {
+MSPtoDB <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source) {
 #reads msp
 PrositLib<- read_lines(Library)
 
