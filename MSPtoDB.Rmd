@@ -5,21 +5,26 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+<<<<<<< HEAD
 setwd("~/SchweppeLab/Informatics/MSPtoDB")
+=======
+setwd("~/Repos/MSPtoDB")
+source("lib/blobfunctions.R")
+source("lib/msp2db.R")
+
+>>>>>>> shiny
 ```
 
 #Packages
 ```{r}
 library(RSQLite)
 library(stringr)
-library(Rcpp)
 library(stringi)
 library(dplyr)
 library(readr)
 library(data.table)
 library(purrr)
 library(blob)
-library(OrgMassSpecR)
 
 ```
 
@@ -27,16 +32,18 @@ library(OrgMassSpecR)
 For testing library builds, settings in the function
 ```{r}
 #library name
-Library = "DBstuff/yeast_consensus.sptxt"
+Library = "Data/DBstuff/yeastprosit.msp"
 FragmentationMode = "CID"
 MassAnalyzer = "IT"
 CollisionEnergy = "35"
-Source = "SpectraST"
+Source = "Prosit"
 TMTPro = TRUE
+DBoutput = "YeastTestingProsit5.db"
 ```
 
 
 
+<<<<<<< HEAD
 #Read .msp and build tables 
 Function to build and manipulate database files for use with RTLS 
 ```{r}
@@ -46,3 +53,13 @@ source("lib\\msp2db.R")
 MSPtoDB("DBstuff/yeast_consensus.sptxt", FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, "RTLS Databases/YeastTesting54.db", Source)
 
 ```
+=======
+## Example code
+```{r}
+MSPtoDB(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source)
+#MSPtoDB(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source) {
+
+```
+
+
+>>>>>>> shiny
