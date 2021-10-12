@@ -15,10 +15,10 @@ source("lib/msp2db.R")
 
 
 # Define UI for application that draws a histogram
-options(shiny.maxRequestSize = 30*1024^2)
+options(shiny.maxRequestSize = 300*1024^2)
 
 ui <- fluidPage(
-    #MSPtoDB(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source)
+    #MSPtoDB(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source, topX, cutoff)
     
     # Application title
     titlePanel("Library Maker"),
@@ -29,6 +29,8 @@ ui <- fluidPage(
     selectInput("TMTProInput", "Add TMTPro?", c("TRUE", "FALSE")),
     selectInput("SourceInput", "Source", c("Prosit", "SpectraST")),
     textInput("DbInput", ".db file name"),
+    numericInput("topX", "Top N Peaks only", 150),
+    numericInput("cutoff", "% intensity cutoff", 0),
     actionButton("button", "Go"),
     add_busy_spinner(spin = "fading-circle")
 )
@@ -42,9 +44,12 @@ server <- function(input, output) {
     Source = reactive(input$SourceInput)
     TMTPro = reactive(input$TMTProInput)
     DBoutput = reactive(input$DbInput)
+    topX = reactive(input$topX)
+    cutoff = reactive(input$cutoff)
     
     observeEvent(input$button, {
-        outputDb<-(MSPtoDB(Library()$datapath, FragmentationMode(), MassAnalyzer(), as.character(CollisionEnergy()), TMTPro(), DBoutput(), Source()))
+        outputDb<-(MSPtoDB(Library()$datapath, FragmentationMode(), MassAnalyzer(), as.character(CollisionEnergy()), TMTPro(), DBoutput(),
+                           Source(),topX(), cutoff()))
         outputDb
     })
 }

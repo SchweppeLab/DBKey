@@ -1,7 +1,7 @@
 ## function for converting MSP files to DB files for RTLS analyses
 # author: Chris McGann
 
-MSPtoDB <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source) {
+MSPtoDB <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source, topX, cutoff) {
   
   
   PrositLib<- read_lines(Library)
@@ -67,9 +67,10 @@ MSPtoDB <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, T
     int<-int[!is.na(int)]
     
     dt<-data.table(masses,int)
-    #dt<-dt[dt$int>50,]
-    #dt<-setorder(dt, -int)
-    #dt <-dt[1:50,]
+    maxPeak<-max(dt$int)
+    dt<-dt[(dt$int/maxPeak)>cutoff,]
+    dt<-setorder(dt, -int)
+    dt <-dt[1:topX,]
     dt<-setorder(dt, masses)
     
     blob<-(as_blob(packBits(numToBits(dt$masses))))
@@ -82,9 +83,10 @@ MSPtoDB <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, T
     int<-int[!is.na(int)]
     
     dt<-data.table(masses,int)
-    #dt<-dt[dt$int>50,]
-    #dt<-setorder(dt, -int)
-    #dt<-dt[1:50,]
+    maxPeak<-max(dt$int)
+    dt<-dt[(dt$int/maxPeak)>cutoff,]
+    dt<-setorder(dt, -int)
+    dt <-dt[1:topX,]
     dt<-setorder(dt, masses)
     
     blob<-(as_blob(packBits(numToBits(dt$int))))
@@ -113,7 +115,15 @@ MSPtoDB <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, T
     dt<-data.table(masses,as.numeric(fragcharge),isBion,int)
     dt$masses[dt$isBion]<-dt$masses[dt$isBion]+TMTPro/dt$V2[dt$isBion]
     dt$masses[isK & !dt$isBion] <- dt$masses[!dt$isBion]+TMTPro/dt$V2[!dt$isBion]
+   
+    dt<-data.table(masses,int)
+    maxPeak<-max(dt$int)
+    dt<-dt[(dt$int/maxPeak)>cutoff,]
+    dt<-setorder(dt, -int)
+    dt <-dt[1:topX,]
     dt<-setorder(dt, masses)
+
+    
     Massblob<-as_blob(packBits(numToBits(dt$masses)))
     
     return(Massblob)
@@ -137,7 +147,16 @@ MSPtoDB <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, T
     dt<-data.table(masses,as.numeric(fragcharge),isBion,int)
     dt$masses[dt$isBion]<-dt$masses[dt$isBion]+TMTPro/dt$V2[dt$isBion]
     dt$masses[isK & !dt$isBion] <- dt$masses[!dt$isBion]+TMTPro/dt$V2[!dt$isBion]
+    
+    dt<-data.table(masses,int)
+    maxPeak<-max(dt$int)
+    dt<-dt[(dt$int/maxPeak)>cutoff,]
+    dt<-setorder(dt, -int)
+    dt <-dt[1:topX,]
     dt<-setorder(dt, masses)
+    
+    
+    
     intblob<-as_blob(packBits(numToBits(dt$int)))
     
     return(intblob)
