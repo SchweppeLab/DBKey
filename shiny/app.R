@@ -42,9 +42,10 @@ ui <- fluidPage(
     selectInput("MassAnalyzerInput", "Mass Analyzer", c("IT", "OT")),
     selectInput("TMTProInput", "Add TMTPro?", c("TRUE", "FALSE")),
     selectInput("SourceInput", "Source", c("Prosit", "SpectraST")),
+    textInput("DbInput", ".db file name"),
     numericInput("topX", "Top N Peaks only", 150),
     numericInput("cutoff", "% intensity cutoff", 0),
-    downloadButton(label = "Generate and Download .db", "downloadData"),
+    actionButton("button", "Go"),
     add_busy_spinner(spin = "fading-circle")
 )
 
@@ -56,12 +57,15 @@ server <- function(input, output) {
     CollisionEnergy = reactive(input$CeInput)
     Source = reactive(input$SourceInput)
     TMTPro = reactive(input$TMTProInput)
+    DBoutput = reactive(input$DbInput)
     topX = reactive(input$topX)
     cutoff = reactive(input$cutoff)
-    output$downloadData <- downloadHandler(
-        filename = function() { paste('library-',Sys.Date(),'.db',sep='') },
-        content = function(outFile) { MSPtoDB(Library()$datapath,FragmentationMode(), MassAnalyzer(), as.character(CollisionEnergy()), TMTPro(), outFile, Source(), topX(), cutoff()) }
-    )
+    
+    observeEvent(input$button, {
+        outputDb<-(MSPtoDB(Library()$datapath, FragmentationMode(), MassAnalyzer(), as.character(CollisionEnergy()), TMTPro(), DBoutput(),
+                           Source(),topX(), cutoff()))
+        outputDb
+    })
 }
 
 # Run the application 
