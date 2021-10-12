@@ -1,10 +1,18 @@
 ## function for converting MSP files to DB files for RTLS analyses
 # author: Chris McGann
 
-MSPtoDB <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source, topX, cutoff) {
+MSPtoDB <- function(Libraries, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source, topX, cutoff) {
   
   
-  PrositLib<- read_lines(Library)
+  #Concatenate each of the libraries together
+  outList<-NULL
+  for(i in 1:length(Libraries[,1]))
+  {
+	outList[[i]] <- read_lines(Libraries[[i, 'datapath']])
+  }
+  
+  #Flatten down to a single list
+  PrositLib<-unlist(outList, recursive = FALSE)
   
   PrositLib<-stri_replace_all_fixed(PrositLib,"FullName: ", "")
   PrositLib<-stri_replace_all_fixed(PrositLib,"AvePrecursorMz:", "")

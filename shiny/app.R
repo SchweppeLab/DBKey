@@ -36,7 +36,7 @@ ui <- fluidPage(
     
     # Application title
     titlePanel("Library Maker"),
-    fileInput("LibInput", "Input File"),
+    fileInput("LibInput", "Input Files", accept=c('.msp','.MSP','.sptxt'), multiple = TRUE),
     selectInput("FragInput", "Fragmentation mode", c("HCD", "CID")),
     numericInput("CeInput", "Collision Energy", 35, min =0, max = 00),
     selectInput("MassAnalyzerInput", "Mass Analyzer", c("IT", "OT")),
@@ -60,7 +60,7 @@ server <- function(input, output) {
     cutoff = reactive(input$cutoff)
     output$downloadData <- downloadHandler(
         filename = function() { paste('library-',Sys.Date(),'.db',sep='') },
-        content = function(outFile) { MSPtoDB(Library()$datapath,FragmentationMode(), MassAnalyzer(), as.character(CollisionEnergy()), TMTPro(), outFile, Source(), topX(), cutoff()) }
+        content = function(outFile) { MSPtoDB(Library(),FragmentationMode(), MassAnalyzer(), as.character(CollisionEnergy()), TMTPro(), outFile, Source(), topX(), cutoff()) }
     )
 }
 
