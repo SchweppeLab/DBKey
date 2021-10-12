@@ -8,16 +8,6 @@
 #
 
 library(shiny)
-library(shinybusy)
-library(RSQLite)                                                                                                                                                                                          
-library(stringr)                                                                                                                                                                                          
-library(Rcpp)                                                                                                                                                                                             
-library(stringi)                                                                                                                                                                                          
-library(dplyr)                                                                                                                                                                                            
-library(readr)                                                                                                                                                                                            
-library(data.table)                                                                                                                                                                                       
-library(purrr)                                                                                                                                                                                            
-library(blob)                                                                                                                                                                                             
 
 setwd("~/Repos/MSPtoDB")
 #source("lib/blobfunctions.R")
@@ -26,10 +16,6 @@ source("lib/msp2db.R")
 
 # Define UI for application that draws a histogram
 options(shiny.maxRequestSize = 300*1024^2)
-
-#set port and host options
-options(shiny.port = 3838)
-options(shiny.host = "0.0.0.0")
 
 ui <- fluidPage(
     #MSPtoDB(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source, topX, cutoff)

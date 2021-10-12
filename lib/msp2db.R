@@ -193,7 +193,7 @@ MSPtoDB <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, T
     PubChemId= "",
     Structure= "",
     mzCloudId= as.integer(NA),
-    CompoundClass= "",
+    CompoundClass= "HUMAN",
     SmilesDescription= "",
     InChiKey= "")
   
