@@ -18,7 +18,7 @@ If it is not installed, please visit the docker website for the relevant directi
 
 Once docker is installed, we may build a copy of the image like so:
 
-``` docker build . -t msptodb ```
+``` docker-compose build dbkey ```
 
 This process may take several minutes for the relevant base images to be pulled, and dependencies to be installed.
 
@@ -26,8 +26,8 @@ This process may take several minutes for the relevant base images to be pulled,
 
 Finally, one may launch a container using the following command:
 
-```docker run -p 3838:3838 msptodb```
+```docker-compose up -d dbkey```
 
-In this case, we have opened the local host port 3838 (i.e., 127.0.0.1:3838) for the Shiny server to communicate through.
+In this case, we have opened the local host port 3838 (i.e., 127.0.0.1:80) for the Shiny server to communicate through.
 
-Simply open your favorite web browser and navigate to ```127.0.0.1:3838```
+Simply open your favorite web browser and navigate to ```127.0.0.1:80```
