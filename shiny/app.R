@@ -18,7 +18,7 @@ library(dplyr)
 library(readr)                                                                                                                                                                                            
 library(data.table)                                                                                                                                                                                       
 library(purrr)                                                                                                                                                                                            
-library(blob)                                                                                                                                                                                             
+library(blob)
 
 setwd("~/Repos/MSPtoDB")
 #source("lib/blobfunctions.R")
@@ -77,6 +77,7 @@ server <- function(input, output) {
     CollisionEnergy = reactive(input$CeInput)
     Source = reactive(input$SourceInput)
     TMTPro = reactive(input$TMTProInput)
+    DBoutput = reactive(input$DbInput)
     topX = reactive(input$topX)
     cutoff = reactive(input$cutoff)
     output$downloadData <- downloadHandler(
