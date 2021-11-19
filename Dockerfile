@@ -1,4 +1,4 @@
-FROM bioconductor/bioconductor_docker
+FROM rocker/shiny
 MAINTAINER Direct All Questions Directly To Devin Schweppe "dkschwep@uw.edu"
 
 RUN R -e "install.packages(c('shiny', 'rmarkdown'), repos='https://cloud.r-project.org/')"
