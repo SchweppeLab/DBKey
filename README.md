@@ -28,6 +28,6 @@ Finally, one may launch a container using the following command:
 
 ```docker-compose up -d dbkey```
 
-In this case, we have opened the local host port 3838 (i.e., 127.0.0.1:80) for the Shiny server to communicate through.
+In this case, we have opened the local host http port 80 (i.e., 127.0.0.1:80) for the Shiny server to communicate through.
 
 Simply open your favorite web browser and navigate to ```127.0.0.1:80```
