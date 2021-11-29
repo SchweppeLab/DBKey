@@ -20,9 +20,8 @@ library(data.table)
 library(purrr)                                                                                                                                                                                            
 library(blob)
 
-#setwd("~/Repos/MSPtoDB")
-#source("lib/blobfunctions.R")
-#source("lib/msp2db.R")
+setwd("~/Repos/MSPtoDB")
+source("lib/msp2db.R")
 
 
 # Define UI for application that draws a histogram
