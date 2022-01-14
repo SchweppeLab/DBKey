@@ -20,7 +20,11 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   #Retrieve mod string for further processing 
   ModString<- str_extract(PrositLib,"ModString=[^=]+")
   ModString<- ModString[!is.na(ModString)]
-
+  ModString<- str_extract(ModString,"//[^=]+")
+  ModString<- gsub('.{6}$', '', ModString)
+  ModString<- gsub('^.{2}', '', ModString)
+  
+  
   #Getting charge state + last aa for adding mods
   Charge<-as.numeric(str_sub(Names,-1 ))
   LastAA<-str_sub(Names,-3,-3 )
