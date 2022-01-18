@@ -3,7 +3,7 @@
 
 
 #Takes txt file input from Prosit/SpectraST and extracts infomation needed to build .db
-LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, Source, topX, cutoff) {
+LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, Source, topX, cutof,massOffset) {
   
   PrositLib<- Library
   
@@ -15,7 +15,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   Names <- str_remove_all(Names, "Name: ")
   
   #Names without charges
-  NamesTag <- gsub('.{2}$', '', Names)
+  PeptideSequence <- gsub('.{2}$', '', Names)
   
   #Retrieve mod string for further processing 
   ModString<- str_extract(PrositLib,"ModString=[^=]+")
@@ -23,6 +23,11 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   ModString<- str_extract(ModString,"//[^=]+")
   ModString<- gsub('.{6}$', '', ModString)
   ModString<- gsub('^.{2}', '', ModString)
+  ModString<- gsub(' ', '', ModString)
+  
+  #testing until I figure out how to read unimod xml
+  unimodTable <- read.csv("~/Repos/MSPtoDB/testMods.csv")
+  ModString<-stri_replace_all_fixed(ModString, unimodTable$mod, as.character(unimodTable$massshift))
   
   
   #Getting charge state + last aa for adding mods
@@ -73,29 +78,15 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   #retrieve peak lists from the indicies
   PeakLists<- (mapply(function(x, y) {PrositLib[x:y]}, x = peakindexes, y = nameindexes))
   PeakLists<-mapply(function(x) {str_split(PeakLists[[x]], "\\t", simplify = T)}, x = seq(from=1,to=length(PeakLists), by=1))
-  names(PeakLists)<-LastAA
+  names(PeakLists)<-PeptideSequence
   
-  
-  #takes peak lists, sorts, filters, and reports blobs of masses
-  getMassBlob <- function(x) {
-    masses<-as.numeric(x[[1]][,1])
-    int<-as.numeric(x[1][[1]][,2])
-    annotations<-(x[1][[1]][,3])
-    masses<-masses[!is.na(masses)]
-    int<-int[!is.na(int)]
-    peakNum <- min(topX, length(masses))
-    
-    dt<-data.table(masses,int)
-    maxPeak<-max(dt$int)
-    dt<-dt[(dt$int/maxPeak)>cutoff,]
-    dt<-setorder(dt, -int)
-    dt <-dt[1:peakNum,]
-    dt<-setorder(dt, masses)   
-    
-    blob<-(as_blob(packBits(numToBits(dt$masses))))
-    
-    return(blob)
+  bYFunction<-function(x){
+    pep<-unlist(str_split(x,""))
+    b<- seq(1,length(pep), by=1)
+    return(data.frame(aa=pep, b=paste0("b",b),y=paste0("y",y)))
   }
+  
+  
   OrganizePeaks<- function(x) {
     masses<-as.numeric(x[,1])
     int<-as.numeric(x[,2])
@@ -118,45 +109,9 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   PeakAnnotations <- map(PeaksDT, function(x){(x[,3])}  ) 
   names(PeakAnnotations) <- ""
   PeakAnnotations <- map(PeakAnnotations, function(x){gsub("0.0ppm", "", x[[1]])})
-  PeakAnnotations <- lapply(PeakAnnotations, function(x){gsub('.{2}$', "", x)})
-  PeakAnnotations <- lapply(PeakAnnotations, function(x){gsub('^.{1}', "", x)})
-  
-  #takes peak lists, sorts, filters, adds TMTPro masses and reports blobs of masses
-  #I should unify these functions 
-  getMassBlobTMTpro <- function(x) {
-    TMTPro<-304.207146
-    isK<- names(x) == ""
-    masses<-as.numeric(x[[1]][,1])
-    int<-as.numeric(x[1][[1]][,2])
-    masses<-masses[!is.na(masses)]
-    int<-int[!is.na(int)]
-    peakNum <- min(topX, length(masses))
-    
-    frag<-(x[[1]][,3])
-    frag<-frag[frag != ""]
-    fragcharge<-str_extract_all(frag,"\\^.",simplify = T)
-    fragcharge[fragcharge==""] <- 1
-    fragcharge[!fragcharge==""]<-as.numeric(str_remove(fragcharge,"\\^"))
-    if(is_empty(fragcharge)) {fragcharge=1}
-    isBion<-stri_detect_fixed(frag,"b")
-    
-    dt<-data.table(masses,as.numeric(fragcharge),isBion,int)
-    dt$masses[dt$isBion]<-dt$masses[dt$isBion]+TMTPro/dt$V2[dt$isBion]
-    dt$masses[isK & !dt$isBion] <- dt$masses[!dt$isBion]+TMTPro/dt$V2[!dt$isBion]
-    
-    dt<-data.table(masses,int)
-    maxPeak<-max(dt$int)
-    dt<-dt[(dt$int/maxPeak)>cutoff,]
-    dt<-setorder(dt, -int)
-    dt <-dt[1:peakNum,]
-    dt<-setorder(dt, masses)
-    
-    
-    Massblob<-as_blob(packBits(numToBits(dt$masses)))
-    
-    return(Massblob)
-  }
-  
+  PeakAnnotations <- map(PeakAnnotations, function(x){gsub( '[^\\^|[:alnum:]]', "", x)})
+ 
+
   #takes peak lists, sorts, filters, adds TMTPro masses and reports blobs of masses
   #I should unify these functions 
 
@@ -174,21 +129,28 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   
   
 #Adds lists to master list as it iterates through  
- blobMassMaster <<- append(blobMassMaster, (blobMass))
- blobIntMaster <<- append(blobIntMaster, (blobInt))
- PrecursorMassesMaster <<-append(PrecursorMassesMaster, (PrecursorMasses))
- NamesMaster <<- append(NamesMaster, (Names))
- TagMaster <<- append(TagMaster, Tags)
+ # blobMassMaster <<- append(blobMassMaster, (blobMass))
+ # blobIntMaster <<- append(blobIntMaster, (blobInt))
+ # PrecursorMassesMaster <<-append(PrecursorMassesMaster, (PrecursorMasses))
+ # NamesMaster <<- append(NamesMaster, (Names))
+ # TagMaster <<- append(TagMaster, Tags)
 
+ parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
+                            PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags)
+ return(parallelTable)
+ 
 }
 
 
 #Builds DB
-DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, Source, topX, cutoff) {
+DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, DBoutput, Source, topX, cutoff) {
 
 #Reads text file in using vroom  
-Library <-vroom(Library, col_names = "Lib", delim = "\n")
-Library <- Library$Lib
+# Library <-vroom("PrositTesting.msp", col_names = "Lib", delim = "\n")
+# Library <- Library$Lib
+
+Library <-fread(Library, header = F, sep  = "\n")
+Library <- Library$V1
 
 #gets poisition of where entires begin for splitting
 #I'm going to fix this
@@ -198,28 +160,54 @@ AllNames<-AllNames[seq(1, length(AllNames), min(length(AllNames)-1,5000))]
 #takes full library and converts it into a list of 5000 entry chunks
 LibraryList<- Map(function(i,j) Library[i:j], AllNames, cumsum(diff(c(AllNames, length(Library)+1))))
 
-blobMassMaster <- list()
-blobIntMaster <- list()
-PrecursorMassesMaster <-list()
-NamesMaster <- list()
-TagMaster <- list()
+blobMassMaster <<- list()
+blobIntMaster <<- list()
+PrecursorMassesMaster <<-list()
+NamesMaster <<- list()
+TagMaster <<- list()
 
+n.cores <- parallel::detectCores() - 1
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+)
+doParallel::registerDoParallel(cl = my.cluster)
 
 #iterates through list building other lists
 for(i in 1:length(LibraryList)) {
-  LibraryParser(LibraryList[[i]], FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, Source, topX, cutoff)
+  LibraryParser(LibraryList[[i]], FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, Source, topX, cutoff," ")
+
+}
+resultsTable<-foreach(
+  i = 1:length(LibraryList),
+  .combine = 'c',
+  .packages = c(
+                "stringr",
+                "stringi",
+                "tidyverse",
+                "readr",
+                "data.table",
+                "purrr",
+                "blob")
+   # That is the main point. Source your Function File here.
+
   
+  ) %dopar% {
+    source("~/Repos/MSPtoDB/lib/LibraryParser.R")
+    LibraryParser(LibraryList[[i]], FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, Source, topX, cutoff," ")
 }
 
 
+parallel::stopCluster(cl = my.cluster)
+
 #Builds tables
 MasterCompoundTable <- data.table(
-  CompoundId = seq(1, length(blobIntMaster), by=1), 
+  CompoundId = seq(1, length(resultsTable$Names), by=1), 
   Formula = "", 
-  Name = unlist(NamesMaster),
+  Name = unlist(resultsTable$Names),
   Synonyms = "",
-  Tag = unlist(TagMaster),
-  Sequence = "",
+  Tag = unlist(resultsTable$Tags),
+  Sequence = gsub('.{2}$', '',resultsTable$Names),
   CASId = "",
   ChemSpiderId= "",
   HMDBId= "",
@@ -233,13 +221,13 @@ MasterCompoundTable <- data.table(
 
 
 MasterSpectrumTable <- data.table(
-  SpectrumId = seq(1, length(blobMassMaster), by=1), 
-  CompoundId = seq(1, length(blobMassMaster), by=1),
+  SpectrumId = seq(1, length(resultsTable$Names), by=1), 
+  CompoundId = seq(1, length(resultsTable$Names), by=1),
   mzCloudURL = "",
   ScanFilter = "",
   RetentionTime = 0.0,
   ScanNumber = 0,#
-  PrecursorMass = unlist(PrecursorMassesMaster),
+  PrecursorMass = resultsTable$PrecursorMasses,
   NeutralMass= 0,
   CollisionEnergy= CollisionEnergy,
   Polarity= "+",
@@ -249,8 +237,8 @@ MasterSpectrumTable <- data.table(
   InstrumentName= "",
   InstrumentOperator= "",
   RawFileURL= "",
-  blobMass=  I(blobMassMaster),
-  blobIntensity= I(blobIntMaster),
+  blobMass= I(resultsTable$blobMass), #I(blobMassMaster),
+  blobIntensity= I(resultsTable$blobInt), #I(blobIntMaster),
   blobAccuracy="",
   blobResolution="",
   blobNoises="",
@@ -291,17 +279,8 @@ dbDisconnect(conn4)
 
 }
 
+#
+#unimod <- read_xml("http://www.unimod.org/xml/unimod.xml")
 
-DBbuilder(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, Source, topX, cutoff)
-  
-Library = "PrositTesting.msp"
-FragmentationMode = "CID"
-MassAnalyzer = "IT"
-CollisionEnergy = "35"
-Source = "Prosit"
-TMTPro = FALSE
-DBoutput = "TagTesting50klib.db"
-topX = 50
-cutoff = 0
 
 
