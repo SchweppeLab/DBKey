@@ -80,6 +80,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   getMassBlob <- function(x) {
     masses<-as.numeric(x[[1]][,1])
     int<-as.numeric(x[1][[1]][,2])
+    annotations<-(x[1][[1]][,3])
     masses<-masses[!is.na(masses)]
     int<-int[!is.na(int)]
     peakNum <- min(topX, length(masses))
@@ -95,27 +96,30 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
     
     return(blob)
   }
-  
-  #takes peak lists, sorts, filters, and reports blobs of masses
-  getIntBlob <- function(x) {
-    masses<-as.numeric(x[[1]][,1])
-    int<-as.numeric(x[1][[1]][,2])
+  OrganizePeaks<- function(x) {
+    masses<-as.numeric(x[,1])
+    int<-as.numeric(x[,2])
+    annotations<-(x[,3])
     masses<-masses[!is.na(masses)]
     int<-int[!is.na(int)]
     peakNum <- min(topX, length(masses))
     
-    dt<-data.table(masses,int)
+    dt<-data.table(masses,int, annotations)
+    dt<-dt[dt$int>0,]
     maxPeak<-max(dt$int)
     dt<-dt[(dt$int/maxPeak)>cutoff,]
     dt<-setorder(dt, -int)
     dt <-dt[1:peakNum,]
     dt<-setorder(dt, masses)
-    
-    blob<-(as_blob(packBits(numToBits(dt$int))))
-    
-    return(blob)
+    return(dt)
   }
   
+  PeaksDT<- map(PeakLists, OrganizePeaks)  
+  PeakAnnotations <- map(PeaksDT, function(x){(x[,3])}  ) 
+  names(PeakAnnotations) <- ""
+  PeakAnnotations <- map(PeakAnnotations, function(x){gsub("0.0ppm", "", x[[1]])})
+  PeakAnnotations <- lapply(PeakAnnotations, function(x){gsub('.{2}$', "", x)})
+  PeakAnnotations <- lapply(PeakAnnotations, function(x){gsub('^.{1}', "", x)})
   
   #takes peak lists, sorts, filters, adds TMTPro masses and reports blobs of masses
   #I should unify these functions 
@@ -155,59 +159,27 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   
   #takes peak lists, sorts, filters, adds TMTPro masses and reports blobs of masses
   #I should unify these functions 
-  getIntBlobTMTpro <- function(x) {
-    TMTPro<-304.207146
-    isK<- names(x) == ""
-    masses<-as.numeric(x[[1]][,1])
-    int<-as.numeric(x[1][[1]][,2])
-    masses<-masses[!is.na(masses)]
-    int<-int[!is.na(int)]
-    peakNum <- min(topX, length(masses))
-    
-    frag<-(x[[1]][,3])
-    frag<-frag[frag != ""]
-    fragcharge<-str_extract_all(frag,"\\^.",simplify = T)
-    fragcharge[fragcharge==""] <-1
-    fragcharge[!fragcharge==""]<-as.numeric(str_remove(fragcharge,"\\^"))
-    if(is_empty(fragcharge)) {fragcharge=1}
-    isBion<-stri_detect_fixed(frag,"b")
-    
-    dt<-data.table(masses,as.numeric(fragcharge),isBion,int)
-    dt$masses[dt$isBion]<-dt$masses[dt$isBion]+TMTPro/dt$V2[dt$isBion]
-    dt$masses[isK & !dt$isBion] <- dt$masses[!dt$isBion]+TMTPro/dt$V2[!dt$isBion]
-    
-    dt<-data.table(masses,int)
-    maxPeak<-max(dt$int)
-    dt<-dt[(dt$int/maxPeak)>cutoff,]
-    dt<-setorder(dt, -int)
-    dt <-dt[1:peakNum,]
-    dt<-setorder(dt, masses)
-    
-    intblob<-as_blob(packBits(numToBits(dt$int)))
-    
-    return(intblob)
-  }
-  
-#makes list of blobs for masses and intensities 
-  blobMass<-if(TMTPro == TRUE) {
-    as_blob(lmap(PeakLists, getMassBlobTMTpro))
-  } else  {
-    as_blob(lmap(PeakLists, getMassBlob))
-  }
-  
-  blobInt<- if(TMTPro == TRUE) {
-    as_blob(lmap(PeakLists, getIntBlobTMTpro))
-  } else  {
-    as_blob(lmap(PeakLists, getIntBlob))
-  }
-  
 
+#makes list of blobs for masses and intensities 
+  blobMass<- as_blob(flatten(map(PeaksDT, function(x) {(as_blob(packBits(numToBits(x$masses))))})))
+  names(blobMass)<- NULL
+  
+  blobInt<- as_blob(flatten(map(PeaksDT, function(x) {(as_blob(packBits(numToBits(x$int))))})))
+  names(blobInt) <- NULL
+
+  
+  PeakAnnotationsCollapse<- map(PeakAnnotations, function(x) { paste(x, collapse = ";")})
+  
+  Tags<-paste0("mods:",ModString," ", "ions:", PeakAnnotationsCollapse )
+  
+  
 #Adds lists to master list as it iterates through  
  blobMassMaster <<- append(blobMassMaster, (blobMass))
  blobIntMaster <<- append(blobIntMaster, (blobInt))
  PrecursorMassesMaster <<-append(PrecursorMassesMaster, (PrecursorMasses))
  NamesMaster <<- append(NamesMaster, (Names))
-  
+ TagMaster <<- append(TagMaster, Tags)
+
 }
 
 
@@ -221,7 +193,7 @@ Library <- Library$Lib
 #gets poisition of where entires begin for splitting
 #I'm going to fix this
 AllNames<-grep("Name: ", Library, fixed = T)
-AllNames<-AllNames[seq(1, length(AllNames), 5000)]
+AllNames<-AllNames[seq(1, length(AllNames), min(length(AllNames)-1,5000))]
 
 #takes full library and converts it into a list of 5000 entry chunks
 LibraryList<- Map(function(i,j) Library[i:j], AllNames, cumsum(diff(c(AllNames, length(Library)+1))))
@@ -246,7 +218,7 @@ MasterCompoundTable <- data.table(
   Formula = "", 
   Name = unlist(NamesMaster),
   Synonyms = "",
-  Tag = "",
+  Tag = unlist(TagMaster),
   Sequence = "",
   CASId = "",
   ChemSpiderId= "",
@@ -320,6 +292,16 @@ dbDisconnect(conn4)
 }
 
 
-
+DBbuilder(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro, Source, topX, cutoff)
+  
+Library = "PrositTesting.msp"
+FragmentationMode = "CID"
+MassAnalyzer = "IT"
+CollisionEnergy = "35"
+Source = "Prosit"
+TMTPro = FALSE
+DBoutput = "TagTesting50klib.db"
+topX = 50
+cutoff = 0
 
 
