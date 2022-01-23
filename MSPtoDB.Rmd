@@ -10,7 +10,6 @@ setwd("~/SchweppeLab/Informatics/MSPtoDB")
 =======
 setwd("~/Repos/MSPtoDB")
 source("lib/blobfunctions.R")
-source("lib/msp2db.R")
 
 >>>>>>> shiny
 ```
