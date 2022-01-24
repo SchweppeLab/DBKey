@@ -4,6 +4,16 @@
 #Builds DB
 DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro,Filter, DBoutput, topX, cutoff) {
 
+  outList<-NULL
+  for(i in 1:length(Libraries[,1]))
+  {
+    outList[[i]] <- vroom(Libraries[[i, 'datapath']])
+  }
+  
+  #Flatten down to a single list
+  PrositLib<-unlist(outList, recursive = FALSE)
+  
+  
   fileType<- str_extract(Library, "[^.]+$" )
 if(fileType == "msp") {
   Source <- "Prosit"
