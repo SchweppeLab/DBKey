@@ -2,8 +2,16 @@
 # author: Chris McGann
 
 #Builds DB
-DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro,Filter, DBoutput, Source, topX, cutoff) {
+DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro,Filter, DBoutput, topX, cutoff) {
 
+  fileType<- str_extract(Library, "[^.]+$" )
+if(fileType == "msp") {
+  Source <- "Prosit"
+} else if (fileType == "sptxt") {
+  Source <- "SpectraST"
+} else if( fileType == "blib") {
+  Source <- "Skyline"
+}
 #Lazy load of library
 LibraryRead <-vroom(Library, col_names = "Lib", delim = "\n")
 LibraryRead<-LibraryRead$Lib
