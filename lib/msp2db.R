@@ -2,19 +2,20 @@
 # author: Chris McGann
 
 #Builds DB
-DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, TMTPro,Filter, DBoutput, topX, cutoff) {
+DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
+                     Filter, DBoutput, topX, cutoff) {
 
   outList<-NULL
-  for(i in 1:length(Libraries[,1]))
+  for(i in 1:length(Library[,1]))
   {
-    outList[[i]] <- vroom(Libraries[[i, 'datapath']])
+    outList[[i]] <- vroom(Library[[i, 'datapath']], col_names = Lib, delim = "\n")
   }
+  LibraryRead <-vroom(Library, col_names = "Lib", delim = "\n")
+  LibraryRead<-unlist(outList, recursive = FALSE)
+  LibraryRead<-LibraryRead$Lib
   
-  #Flatten down to a single list
-  PrositLib<-unlist(outList, recursive = FALSE)
   
-  
-  fileType<- str_extract(Library, "[^.]+$" )
+  fileType<- str_extract(Library[[i, 'datapath']], "[^.]+$" )
 if(fileType == "msp") {
   Source <- "Prosit"
 } else if (fileType == "sptxt") {
@@ -22,9 +23,7 @@ if(fileType == "msp") {
 } else if( fileType == "blib") {
   Source <- "Skyline"
 }
-#Lazy load of library
-LibraryRead <-vroom(Library, col_names = "Lib", delim = "\n")
-LibraryRead<-LibraryRead$Lib
+
 
 #List of interval to search for entry beginnings 
 NamesX<-seq(200000,length(LibraryRead),by=200000)
