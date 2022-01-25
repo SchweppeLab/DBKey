@@ -2,16 +2,6 @@
 library(shiny)
 library(shinybusy)
 library(shinydashboard)
-library(RSQLite)                                                                                                                                                                                          
-library(stringr)                                                                                                                                                                                          
-library(vroom)                                                                                                                                                                                             
-library(stringi)                                                                                                                                                                                          
-library(tidyverse)                                                                                                                                                                                            
-library(readr)                                                                                                                                                                                            
-library(data.table)                                                                                                                                                                                       
-library(purrr)                                                                                                                                                                                            
-library(blob)
-library(BiocParallel)
 library(shinyjs)
 
 setwd("~/Repos/MSPtoDB")
@@ -43,13 +33,13 @@ body <- dashboardBody(
               useShinyjs(),
               titlePanel("Spectral Library to mzVault .db Converter"),
               fileInput("LibInput", "Input Files", accept=c('.msp','.MSP','.sptxt','.blib'), multiple = TRUE),
-              selectInput("FragInput", "Fragmentation", c("Read From File"= '', "HCD", "CID")),
-              textInput("CeInput", "Normalized Collision Energy (NCE)","", placeholder =  "Read from file" ),
+              selectInput("FragInput", "Fragmentation", c("Read From file"= '', "HCD", "CID")),
+              textInput("CeInput", "Normalized Collision Energy (NCE)","Read from file", placeholder =  "Read from file" ),
               selectInput("MassAnalyzerInput", "Mass Analyzer", c("OT", "IT")),
-              #selectInput("TMTProInput", "Add TMTPro?", c("FALSE", "TRUE")),
-              #selectInput("Filter", "Filter peaks?", c("Yes", "No")),
-              numericInput("massoffset", "Mass Offset: ", 0),
-              checkboxInput("Filter", "Filter peaks?", value = FALSE, width = NULL),
+              textInput("massOffset", "Mass Offset: ","0"),
+              div(checkboxInput("Filter", "Filter peaks?", value = FALSE, width = '500%'),
+                  style = "font-size: 20px !important; text-align:left;"
+              ),
               hidden(checkboxGroupInput(
                 "IonTypes",
                 "Ion types included?",
@@ -60,7 +50,6 @@ body <- dashboardBody(
                 choiceNames = NULL,
                 choiceValues = NULL
               )),
-              textOutput("text"),
               hidden(numericInput("topX", "Top N Peaks only", 150)),
               hidden(numericInput("cutoff", "% intensity cutoff", 0)),
               downloadButton(label = "Generate and Download .db", "downloadData"),
@@ -84,23 +73,35 @@ server <- function(input, output) {
   MassAnalyzer =  reactive(input$MassAnalyzerInput)
   CollisionEnergy = reactive(input$CeInput)
   TMTPro = reactive(input$TMTProInput)
-  DBoutput = reactive(input$DbInput)
   Filter = reactive(input$Filter)
+  DBoutput = reactive(input$DbInput)
   topX = reactive(input$topX)
-  cutoff = reactive(input$cutoff)
+  cutoff = reactive(input$cutoff)  
+
+  IonTypes=reactive(input$IonTypes)
   observe({
     toggle(id="topX", condition = input$Filter)})
   observe({
     toggle(id="cutoff", condition = input$Filter)})
   observe({
       toggle(id="IonTypes", condition = input$Filter)})
-  output$text <- renderText({ paste(input$IonTypes)})
   output$downloadData <- downloadHandler(
    # filename = function() { paste('library-',format(Sys.time(), "%Y-%m-%d_%I-%p"),'.db',sep='') },
-    filename = function() { paste0(substring(Library()$name,0,nchar(Library()$name)-3), 'db') },
-   # content = function(outFile) { DBbuilder(Library()$datapath,FragmentationMode(), MassAnalyzer(), as.character(CollisionEnergy()), TMTPro(), "test.db",FALSE,Source(), topX(), cutoff()) }
-    content= function(x) {
-      DBbuilder(Library()$datapath, "CID", "OT", "35", FALSE ,FALSE , x, 150, 0)
+    filename = function() { paste0(substr(Library()$name,0,nchar(Library()$name)-4), '.db') },
+     content= function(x) {
+       massOffset<-isolate({
+         massOff<-input$massOffset
+         top<-input$topX
+         cutoff<-input$cutoff
+         IonTypes<-input$IonTypes
+         Filter<-input$Filter
+         FragmentationMode = (input$FragInput)
+         MassAnalyzer =  (input$MassAnalyzerInput)
+         CollisionEnergy = (input$CeInput)
+         })
+        DBbuilder(Library=Library(), FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer(), CollisionEnergy=CollisionEnergy,
+                           Filter=Filter, DBoutput=x, topX=top, cutoff=cutoff, massOffset=massOff, IonTypes=IonTypes)
+   
     } )
     
 }

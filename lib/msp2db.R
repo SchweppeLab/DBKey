@@ -2,20 +2,35 @@
 # author: Chris McGann
 
 #Builds DB
-DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
-                     Filter, DBoutput, topX, cutoff) {
+library(BiocParallel)
+library(RSQLite)
+library(dplyr)
+library(compiler)
+library(vroom)
+library(data.table)
 
-  outList<-NULL
-  for(i in 1:length(Library[,1]))
-  {
-    outList[[i]] <- vroom(Library[[i, 'datapath']], col_names = Lib, delim = "\n")
-  }
-  LibraryRead <-vroom(Library, col_names = "Lib", delim = "\n")
-  LibraryRead<-unlist(outList, recursive = FALSE)
-  LibraryRead<-LibraryRead$Lib
-  
-  
-  fileType<- str_extract(Library[[i, 'datapath']], "[^.]+$" )
+
+DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
+                     Filter, DBoutput, topX, cutoff, massOffset, IonTypes) {
+
+ # outList<-NULL
+ #  for(i in 1:length(Library$name))
+ #  {
+ #    outList[i] <- vroom(Library$datapath[i], col_names = "Lib", delim = "\n")
+ #  }
+ #  LibraryRead<-unlist(outList, recursive = FALSE)
+ # 
+ #     
+ # if(length(Library$name==1)){
+ #   LibraryPath = Library$datapath
+ # } else {
+ #    dir.create("Temp")
+ #    fwrite(LibraryRead, "CombinedLibTemp.msp")
+ #    LibraryPath = "Temp/CombinedLibTemp.msp"
+ #  }
+ #   
+ #  
+  fileType<- str_extract(Library$name[1], "[^.]+$" )
 if(fileType == "msp") {
   Source <- "Prosit"
 } else if (fileType == "sptxt") {
@@ -24,6 +39,11 @@ if(fileType == "msp") {
   Source <- "Skyline"
 }
 
+LibraryRead = vroom(Library$datapath, col_names = "Lib", delim = "\n")
+LibraryRead<-LibraryRead$Lib
+LibraryPath = (Library$datapath)  
+
+#Source="Prosit"
 
 #List of interval to search for entry beginnings 
 NamesX<-seq(200000,length(LibraryRead),by=200000)
@@ -61,11 +81,16 @@ rm(LibraryRead)
 resultsTable<-bpmapply(function(x,y,z) {
   source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
   library(readr)
-  
   Lib<-read_lines(z, skip=x-2, n_max=(y-x-1))
-  LibraryParser(Lib,FragmentationMode, MassAnalyzer, CollisionEnergy, Filter, FALSE, Source, topX, cutoff," ")},
-  x=NamesListX, y=NamesListY, z=Library,
-  BPPARAM=SnowParam(workers = 10),SIMPLIFY = FALSE) %>% bind_rows
+  LibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
+                CollisionEnergy=CollisionEnergy, 
+                 Filter=Filter, TMTPro=F, Source=Source, topX=topX, 
+                cutoff=cutoff,massOffset, IonTypes=IonTypes)
+  },
+  x=NamesListX, y=NamesListY, z=LibraryPath,
+  BPPARAM=SnowParam(parallel::detectCores()-2),SIMPLIFY = FALSE) %>% bind_rows
+
+
 
 
 #Builds tables
@@ -97,9 +122,9 @@ MasterSpectrumTable <- data.table(
   ScanNumber = 0,#
   PrecursorMass = resultsTable$PrecursorMasses,
   NeutralMass= 0,
-  CollisionEnergy= CollisionEnergy,
+  CollisionEnergy= resultsTable$CollisionEnergy,
   Polarity= "+",
-  FragmentationMode= FragmentationMode,
+  FragmentationMode= resultsTable$FragmentationMode,
   IonizationMode= "ESI",
   MassAnalyzer= MassAnalyzer,
   InstrumentName= "",
