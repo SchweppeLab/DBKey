@@ -6,7 +6,10 @@ library(shinyjs)
 
 setwd("~/Repos/MSPtoDB")
 source("lib/msp2db.R")
+<<<<<<< HEAD
 source("lib/LibraryParserv2.R")
+=======
+>>>>>>> 853dfdd16465b81462cb251627bd307b95e8ce7e
 
 
 # Define UI for application that draws a histogram
