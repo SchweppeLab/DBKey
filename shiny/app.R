@@ -31,13 +31,13 @@ body <- dashboardBody(
     tabItem(tabName = "maker",
             fluidPage(
               useShinyjs(),
-              titlePanel("Spectral Library to mzVault .db Converter"),
+              textOutput("var"),            
               fileInput("LibInput", "Input Files", accept=c('.msp','.MSP','.sptxt','.blib'), multiple = TRUE),
               selectInput("FragInput", "Fragmentation", c("Read From file"= '', "HCD", "CID")),
               textInput("CeInput", "Normalized Collision Energy (NCE)","Read from file", placeholder =  "Read from file" ),
               selectInput("MassAnalyzerInput", "Mass Analyzer", c("OT", "IT")),
               textInput("massOffset", "Mass Offset: ","0"),
-              div(checkboxInput("Filter", "Filter peaks?", value = FALSE, width = '500%'),
+              div(switchInput("Filter", label="Filter", value = FALSE),
                   style = "font-size: 20px !important; text-align:left;"
               ),
               hidden(checkboxGroupInput(
@@ -68,6 +68,9 @@ ui <- dashboardPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
+  output$var <- renderText({ 
+    grepl("blib",Library()$name[1])
+  })
   Library = reactive(input$LibInput)
   FragmentationMode = reactive(input$FragInput)
   MassAnalyzer =  reactive(input$MassAnalyzerInput)
@@ -77,7 +80,7 @@ server <- function(input, output) {
   DBoutput = reactive(input$DbInput)
   topX = reactive(input$topX)
   cutoff = reactive(input$cutoff)  
-
+  output$text <- renderText({ Library()$name }) 
   IonTypes=reactive(input$IonTypes)
   observe({
     toggle(id="topX", condition = input$Filter)})
@@ -87,7 +90,7 @@ server <- function(input, output) {
       toggle(id="IonTypes", condition = input$Filter)})
   output$downloadData <- downloadHandler(
    # filename = function() { paste('library-',format(Sys.time(), "%Y-%m-%d_%I-%p"),'.db',sep='') },
-    filename = function() { paste0(substr(Library()$name,0,nchar(Library()$name)-4), '.db') },
+    filename = function() { paste0(gsub("[^.]+$", "", Library()$name), 'db') },
      content= function(x) {
        massOffset<-isolate({
          massOff<-input$massOffset
