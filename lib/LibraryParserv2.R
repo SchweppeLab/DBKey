@@ -100,10 +100,8 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   
   Names<- HeaderLists[stri_detect_fixed(HeaderLists, "Name: ")]
   Names <- str_remove_all(Names, "Name: ")
-  NumPeaks<- HeaderLists[stri_detect_fixed(HeaderLists, "peaks: ")]
-  NumPeaks <- gsub("[^[:digit:]]", "",  NumPeaks, perl = T)
-  
-  
+  NumPeaks<-(c(nameindexes[-1], length(Library)+1) - peakindexes)-1
+
   PeptideSequence <- gsub('.{2}$', '', Names, perl = T)
   
   #Retrieve mod string for further processing 
@@ -274,9 +272,8 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   Names<- HeaderLists[stri_detect_fixed(HeaderLists, "Name: ")]
   Names <- str_remove_all(Names, "\nName: ")
   Names[1] <- str_remove_all(Names[1], "Name: ")
-  NumPeaks<- HeaderLists[stri_detect_regex(HeaderLists, "(?i)peaks: ")]
-  NumPeaks <- gsub("[^[:digit:]]", "",  NumPeaks, perl = T)
-  
+  NumPeaks<-(c(nameindexes[-1], length(Library)+1) - peakindexes)-1
+
   
   PeptideSequence <- gsub('.{2}$', '', Names, perl = T)
   

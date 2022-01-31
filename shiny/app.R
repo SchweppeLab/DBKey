@@ -10,7 +10,7 @@ source("lib/LibraryParserv2.R")
 
 
 # Define UI for application that draws a histogram
-options(shiny.maxRequestSize = 3000*1024^2)
+options(shiny.maxRequestSize = 10000*1024^2)
 
 #set port and host options
 options(shiny.port = 3838)
