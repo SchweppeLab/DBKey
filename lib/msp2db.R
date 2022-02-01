@@ -8,7 +8,6 @@ library(dplyr)
 library(compiler)
 library(vroom)
 library(data.table)
-library(shinyWidgets)
 
 # main function of shiny app
 DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
@@ -41,7 +40,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   NamesList<-mapply(function(x, y) {(grep("Name: ", LibraryRead[x:y],fixed = T)+(x-1))[1]}, x = NamesX, y = NamesY)
   
   #for function convienence
-  NamesListX<-c(0,NamesList)
+  NamesListX<-c(0,NamesList-1)
   NamesListY<-c(NamesList-1,length(LibraryRead))
   
   #get rid of library
@@ -50,28 +49,26 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   if(fileType=="SpectraST"){
     resultsTable<-bpmapply(function(x,y,z) {
       source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
-      library(readr)
-      Lib<-read_lines(z, skip=x-2, n_max=(y-x-1),skip_empty_rows = T)
-      SpXLibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
+      Lib<-fread(z, skip=x, nrows=(y-x),strip.white = T, header = F, sep= "\n")
+      SpXLibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
                        CollisionEnergy=CollisionEnergy, 
                        Filter=Filter, TMTPro=F, Source=fileType, topX=topX, 
                        cutoff=cutoff,massOffset, IonTypes=IonTypes)
     },
     x=NamesListX, y=NamesListY, z=LibraryPath,
-    BPPARAM=SnowParam(parallel::detectCores()-2),SIMPLIFY = FALSE) %>% bind_rows}
+    BPPARAM=SnowParam(workers = parallel::detectCores()-4),SIMPLIFY = FALSE) %>% bind_rows}
   
   if(fileType=="Prosit"){
     resultsTable<-bpmapply(function(x,y,z) {
       source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
-      library(readr)
-      Lib<-read_lines(z, skip=x-2, n_max=(y-x-1),skip_empty_rows = T)
-      LibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
+      Lib<-fread(z, skip=x, nrows=(y-x),strip.white = T, header = F, sep= "\n")
+      LibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
                     CollisionEnergy=CollisionEnergy, 
                     Filter=Filter, TMTPro=F, Source=fileType, topX=topX, 
                     cutoff=cutoff,massOffset, IonTypes=IonTypes)
     },
     x=NamesListX, y=NamesListY, z=LibraryPath,
-    BPPARAM=SnowParam(parallel::detectCores()-2),SIMPLIFY = FALSE) %>% bind_rows
+    BPPARAM=SnowParam(workers = parallel::detectCores()-4),SIMPLIFY = FALSE) %>% bind_rows
     
   }
   
