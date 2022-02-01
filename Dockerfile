@@ -1,7 +1,6 @@
 FROM wbarshop/msptodb_base
 MAINTAINER Direct All Questions Directly To Devin Schweppe "dkschwep@uw.edu"
 
-
 RUN mkdir /root/Repos/
 COPY . /root/Repos/MSPtoDB/
 
