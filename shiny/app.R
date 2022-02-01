@@ -9,12 +9,13 @@ source("lib/msp2db.R")
 source("lib/LibraryParserv2.R")
 
 
-# Define UI for application that draws a histogram
+# Define UI for application that converts spectral library formats
 options(shiny.maxRequestSize = 10000*1024^2)
 
 #set port and host options
 options(shiny.port = 3838)
 options(shiny.host = "0.0.0.0")
+Sys.setenv("VROOM_CONNECTION_SIZE" = 131072 * 5000)
 
 header <- dashboardHeader(
   title = "Library Maker"
