@@ -2,6 +2,7 @@
 library(shiny)
 library(shinybusy)
 library(shinydashboard)
+library(shinyWidgets)
 library(shinyjs)
 
 setwd("~/Repos/MSPtoDB")
