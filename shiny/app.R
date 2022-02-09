@@ -3,6 +3,7 @@ library(shiny)
 library(shinybusy)
 library(shinydashboard)
 library(shinyjs)
+library(shinyWidgets)
 
 setwd("~/Repos/MSPtoDB")
 source("lib/msp2db.R")

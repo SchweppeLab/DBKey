@@ -26,7 +26,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   
   # Reading file in 
   if(fileType != "Skyline") {
-  LibraryRead = vroom(Library$datapath, col_names = "Lib", delim = "\n")
+  LibraryRead = vroom(Library$datapath, col_names = "Lib", delim = "\n",skip_empty_rows = F)
   LibraryRead<-LibraryRead$Lib
   LibraryPath = (Library$datapath)  
   
@@ -37,7 +37,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   NamesY<-seq(205000,length(LibraryRead),by=200000)
   
   #Get indices of entries between 500 lines at evenly spaced intervals 
-  NamesList<-mapply(function(x, y) {(grep("Name: ", LibraryRead[x:y],fixed = T)+(x-1))[1]}, x = NamesX, y = NamesY)
+  NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = F, perl = T)+(x-1))[1]}, x = NamesX, y = NamesY)
   
   #for function convienence
   NamesListX<-c(0,NamesList-1)
@@ -49,7 +49,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   if(fileType=="SpectraST"){
     resultsTable<-bpmapply(function(x,y,z) {
       source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
-      Lib<-fread(z, skip=x, nrows=(y-x),strip.white = T, header = F, sep= "\n")
+      Lib<-fread(z, skip=x, nrows=(y-x),strip.white = T,blank.lines.skip=T, header = F, sep= "\n")
       SpXLibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
                        CollisionEnergy=CollisionEnergy, 
                        Filter=Filter, TMTPro=F, Source=fileType, topX=topX, 
@@ -61,7 +61,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   if(fileType=="Prosit"){
     resultsTable<-bpmapply(function(x,y,z) {
       source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
-      Lib<-fread(z, skip=x, nrows=(y-x),strip.white = T, header = F, sep= "\n")
+      Lib<-fread(z, skip=x, nrows=(y-x),strip.white = T,blank.lines.skip=T, header = F, sep= "\n")
       LibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
                     CollisionEnergy=CollisionEnergy, 
                     Filter=Filter, TMTPro=F, Source=fileType, topX=topX, 

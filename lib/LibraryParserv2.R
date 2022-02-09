@@ -21,8 +21,10 @@ OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
     dt<-dt[(dt$int/maxPeak)*100>cutoff,]
   }
   if(!is.null(IonTypes)) {
-    dt<-dt[stri_detect_fixed(x$annotations,IonTypes),]
+    dt<-dt[!(substr(dt$annotations,1,1) %in% IonTypes)]
+    
   }
+  
   dt<-setkey(dt, masses)
   return(dt)
 }
@@ -37,6 +39,16 @@ blobMassFunction<- function(x){
   as_blob(packBits(numToBits(unlist(x[,1]))))}
 blobIntFunction<- function(x){
   as_blob(packBits(numToBits(unlist(x[,2]))))}
+
+MassOffsetting <- function(x) {
+  if(x == "TMTpro Zero") {
+    
+  } else if(x == "TMTpro Zero") {
+    return(TMTchange = -9.017554)
+  } else if (x == "TMTpro SuperHeavy") {
+    return(TMTchange = 9.023873)
+  }
+}
 
 
 OrgPeakCmp<-cmpfun(OrganizePeaks)
@@ -222,7 +234,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   Library<-Library[firstName:length(Library)]
   
   
-  nameindexes<-c(1,which(stri_detect_fixed(Library,"\nName: ")))
+  nameindexes<-c(which(stri_detect_regex(Library,"^Name: ")))
   headerLength<- which(stri_detect_regex(Library[1:100],"(?i)peaks:"))[1]-nameindexes[1]
   peakindexes<-nameindexes+headerLength
   HeaderLists<- unlist(mapply(function(x, y) {Library[x:y]}, x = nameindexes, y = peakindexes, SIMPLIFY = T))
@@ -269,13 +281,15 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   HeaderLists<-gsub("AvePrecursorMz:", "", HeaderLists, fixed = T)
   
   
-  Names<- HeaderLists[stri_detect_fixed(HeaderLists, "Name: ")]
-  Names <- str_remove_all(Names, "\nName: ")
-  Names[1] <- str_remove_all(Names[1], "Name: ")
+  Names<- HeaderLists[stri_detect_regex(HeaderLists, "^Name: ")]
+  Names <- str_remove_all(Names, "Name: ")
+ # Names[1] <- str_remove_all(Names[1], "Name: ")
   NumPeaks<-(c(nameindexes[-1], length(Library)+1) - peakindexes)-1
 
   
   PeptideSequence <- gsub('.{2}$', '', Names, perl = T)
+  PeptideSequence <- gsub('\\[.+\\]', '', PeptideSequence, perl = T)
+  PeptideSequence <- gsub('n', '', PeptideSequence, perl = T)
   
   #Retrieve mod string for further processing 
   ModString<- stri_extract_first_regex(HeaderLists,"ModString=[^=]+")
@@ -298,11 +312,8 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   # }
   # 
   
-  PrecursorMasses <- if(Source == "Prosit"){
-    HeaderLists[stri_detect_fixed(HeaderLists, "MW:")]
-  } else {
-    HeaderLists[stri_detect_fixed(HeaderLists, "PrecursorMZ:")]
-  }
+  PrecursorMasses <- HeaderLists[stri_detect_fixed(HeaderLists, "PrecursorMZ:")]
+  
   PrecursorMasses <- gsub("[[:alpha:]]|:", "", PrecursorMasses)
   
   #   PrecursorMasses<- if(TMTPro == TRUE) {
@@ -330,7 +341,8 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   
   rm(PeakLists)
   
-  dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = T )
+  dt$annotations<- gsub( "([^\\/]+$)","",dt$annotations, perl = T )
+  dt$annotations<- gsub( "/","",dt$annotations, perl = T )
   dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
   
   
