@@ -36,8 +36,8 @@ body <- dashboardBody(
               fileInput("LibInput", "Input Files", accept=c('.msp','.MSP','.sptxt','.blib'), multiple = TRUE),
               selectInput("FragInput", "Fragmentation", c("Read From file"= '', "HCD", "CID")),
               textInput("CeInput", "Normalized Collision Energy (NCE)","Read from file", placeholder =  "Read from file" ),
-              selectInput("MassAnalyzerInput", "Mass Analyzer", c("OT", "IT")),
-              textInput("massOffset", "Mass Offset: ","0"),
+              selectInput("MassAnalyzerInput", "Mass Analyzer", c("FT", "IT")),
+              fileInput("massOffset", "Mass Offset: ", accept=c(".csv")),
               div(switchInput("Filter", label="Filter", value = FALSE),
                   style = "font-size: 20px !important; text-align:left;"
               ),
@@ -93,7 +93,7 @@ server <- function(input, output) {
    # filename = function() { paste('library-',format(Sys.time(), "%Y-%m-%d_%I-%p"),'.db',sep='') },
     filename = function() { paste0(gsub("[^.]+$", "", Library()$name), 'db') },
      content= function(x) {
-       massOffset<-isolate({
+       Y<-isolate({
          massOff<-input$massOffset
          top<-input$topX
          cutoff<-input$cutoff

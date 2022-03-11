@@ -48,7 +48,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   }
   if(fileType=="SpectraST"){
     resultsTable<-bpmapply(function(x,y,z) {
-      source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
+      source("~/Repos/MSPtoDB/lib/SpXLibraryParser.R")
       Lib<-fread(z, skip=x, nrows=(y-x),strip.white = T,blank.lines.skip=T, header = F, sep= "\n")
       SpXLibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
                        CollisionEnergy=CollisionEnergy, 
