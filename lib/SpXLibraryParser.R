@@ -62,8 +62,10 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   peakindexes<-nameindexes+headerLength
   HeaderLists<- unlist(mapply(function(x, y) {Library[x:y]}, x = nameindexes, y = peakindexes, SIMPLIFY = T))
   PeakLists<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)))
-  
-  
+  Comments<-HeaderLists[which(stri_detect_fixed(HeaderLists,"Comment: "))]
+  Comments<- str_split(Comments, "RetentionTime=", simplify = T)
+  Comments<- str_split(Comments[,2], ",", simplify = T)
+  RetentionTime <- Comments[,1]
   
   getFrag<- function(x){
     match<- unique(stri_extract_all_fixed(x, c("CID","HCD"), simplify = T, omit_no_match = T))
@@ -151,7 +153,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   
   PeakLists<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)),SIMPLIFY = T)
   PeakLists<-mapply(function(x) {str_split(PeakLists[[x]], "\\t",simplify = T)}, x = seq(from=1,to=length(PeakLists), by=1))
-  PeakLists<-lapply(PeakLists, function(x) { x[1:3]})
+  PeakLists<-lapply(PeakLists, function(x) { x[,1:3]})
   PeakLists <- do.call("rbind", PeakLists)
   
   dt<-data.table(PeakLists)
@@ -232,7 +234,8 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
                              PrecursorMasses=PrecursorMasses,Names=Names,
                              Tags="", 
                              FragmentationMode="CID",
-                             CollisionEnergy="CollisionEnergy")
+                             CollisionEnergy="CollisionEnergy",
+                             RetentionTime=RetentionTime)
   
   return(parallelTable)
   

@@ -63,6 +63,9 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   
   HeaderLists<-gsub("FullName: ", "", HeaderLists, fixed = TRUE)
   HeaderLists<-gsub("AvePrecursorMz:", "", HeaderLists, fixed = TRUE)
+  Comments<-HeaderLists[which(stri_detect_fixed(HeaderLists,"Comment: "))]
+  Comments<- str_split(Comments, "iRT=", simplify = T)
+  RetentionTime <- Comments[,2]
   
     
     getFrag<- function(x){
@@ -222,7 +225,8 @@ rm(HeaderLists)
   #}
      parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
                              PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,
-                             CollisionEnergy=CollisionEnergy)
+                             CollisionEnergy=CollisionEnergy,
+                             RetentionTime=RetentionTime)
 
   return(parallelTable)
   

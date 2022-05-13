@@ -110,7 +110,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
       CompoundId = seq(1, length(resultsTable$Names), by=1),
       mzCloudURL = "",
       ScanFilter = "",
-      RetentionTime = 0.0,
+      RetentionTime = resultsTable$RetentionTime,
       ScanNumber = 0,#
       PrecursorMass = resultsTable$PrecursorMasses,
       NeutralMass= 0,
