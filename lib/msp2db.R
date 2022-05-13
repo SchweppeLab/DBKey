@@ -26,7 +26,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   
   # Reading file in 
   if(fileType != "Skyline") {
-  LibraryRead = vroom(Library$datapath, col_names = "Lib", delim = "\n",skip_empty_rows = F)
+  LibraryRead = vroom(Library$datapath, col_names = "Lib", delim = "\n",skip_empty_rows = TRUE)
   LibraryRead<-LibraryRead$Lib
   LibraryPath = (Library$datapath)  
   
@@ -40,7 +40,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   NamesY<-seq(chunksize+500,length(LibraryRead),by=chunksize)
   
   #Get indices of entries between 500 lines at evenly spaced intervals 
-  NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = F, perl = T)+(x-1))[1]}, x = NamesX, y = NamesY)
+  NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)+(x-1))[1]}, x = NamesX, y = NamesY)
   
   #for function convienence
   NamesListX<-c(0,NamesList)

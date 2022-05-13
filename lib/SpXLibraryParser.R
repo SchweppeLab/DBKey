@@ -51,7 +51,7 @@ blobIntFunctionCmp<- cmpfun(blobIntFunction)
 
 
 SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, 
-                             Filter=F, TMTPro=F, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
+                             Filter=FALSE, TMTPro=FALSE, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
   
   firstName<-grep("Name", Library[1:100])[1]
   Library<-Library[firstName:length(Library)]
@@ -63,12 +63,12 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   HeaderLists<- unlist(mapply(function(x, y) {Library[x:y]}, x = nameindexes, y = peakindexes, SIMPLIFY = T))
   PeakLists<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)))
   Comments<-HeaderLists[which(stri_detect_fixed(HeaderLists,"Comment: "))]
-  Comments<- str_split(Comments, "RetentionTime=", simplify = T)
-  Comments<- str_split(Comments[,2], ",", simplify = T)
+  Comments<- str_split(Comments, "RetentionTime=", simplify = TRUE)
+  Comments<- str_split(Comments[,2], ",", simplify = TRUE)
   RetentionTime <- Comments[,1]
   
   getFrag<- function(x){
-    match<- unique(stri_extract_all_fixed(x, c("CID","HCD"), simplify = T, omit_no_match = T))
+    match<- unique(stri_extract_all_fixed(x, c("CID","HCD"), simplify = TRUE, omit_no_match = T))
     if(length(match)==2){
       return(as.character(match[1]))
     } else {
@@ -162,15 +162,12 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   dt$masses<-as.numeric(dt$masses)
   dt$int<-as.numeric(dt$int)
   
- # UnSorted<- any(unlist(mapply(function(x,y) {is.unsorted(dt[[1]][x:y])}, 
-  #                             x= c(0, cumsum(NumPeaks[1:4]))+1 ,y= cumsum(NumPeaks[1:5]), SIMPLIFY = F)))
+  # UnSorted<- any(unlist(mapply(function(x,y) {is.unsorted(dt[[1]][x:y])}, 
+  #                              x= c(0, cumsum(NumPeaks[1:4]))+1 ,y= cumsum(NumPeaks[1:5]), SIMPLIFY = F)))
   UnSorted = FALSE
   rm(PeakLists)
-  
-  # dt$annotations<- gsub( "([^\\/]+$)","",dt$annotations, perl = T )
-  # dt$annotations<- gsub( "/","",dt$annotations, perl = T )
-  # dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
-  
+  dt$annotations <- str_split(dt$annotations, "/", simplify = T)[,1]
+
   
   # UnSorted<-F
   if(Filter == FALSE & !UnSorted){
@@ -206,10 +203,10 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
     
   }
   
-  # PeakAnnotations<-mapply(function(x,y) {as.list(dt)[[3]][x:y]},
-  #                         x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = F)
-  # 
-  # PeakAnnotations<-  lapply(PeakAnnotations, function(x) { paste(x, collapse = ";")})
+  PeakAnnotations<-mapply(function(x,y) {as.list(dt)[[3]][x:y]},
+                           x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = F)
+   
+   PeakAnnotations<-  lapply(PeakAnnotations, function(x) { paste(x, collapse = ";")})
   # 
   # 
   # if(length(massOffset$name > 1)){
@@ -229,12 +226,13 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   # } else {
     # Tags<-paste0("mods:",ModString," ", "ions:", PeakAnnotations)
   # }
-
+   Tags<-paste0( "ions:", PeakAnnotations)
+   
   parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
                              PrecursorMasses=PrecursorMasses,Names=Names,
                              Tags="", 
-                             FragmentationMode="CID",
-                             CollisionEnergy="CollisionEnergy",
+                             FragmentationMode=FragmentationMode,
+                             CollisionEnergy=CollisionEnergy,
                              RetentionTime=RetentionTime)
   
   return(parallelTable)
