@@ -33,44 +33,56 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   #Source="Prosit"
   
   #List of interval to search for entry beginnings 
-  NamesX<-seq(200000,length(LibraryRead),by=200000)
-  NamesY<-seq(205000,length(LibraryRead),by=200000)
+  chunksize <- round((length(LibraryRead)/120))
+  chunksize<-min(length(LibraryRead),chunksize)
+  
+  NamesX<-seq(chunksize,length(LibraryRead)-500,by=chunksize)
+  NamesY<-seq(chunksize+500,length(LibraryRead),by=chunksize)
   
   #Get indices of entries between 500 lines at evenly spaced intervals 
   NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = F, perl = T)+(x-1))[1]}, x = NamesX, y = NamesY)
   
   #for function convienence
-  NamesListX<-c(0,NamesList-1)
+  NamesListX<-c(0,NamesList)
   NamesListY<-c(NamesList-1,length(LibraryRead))
   
   #get rid of library
-  rm(LibraryRead)
+ 
   }
+  chunklist<- mapply(function(x,y) {
+    LibraryRead[x:y]
+  }, x=NamesListX, y=NamesListY)
+   rm(LibraryRead)
+  
   if(fileType=="SpectraST"){
-    resultsTable<-bpmapply(function(x,y,z) {
+    resultsTable<-bplapply(chunklist, function(x) {
       source("~/Repos/MSPtoDB/lib/SpXLibraryParser.R")
-      Lib<-fread(z, skip=x, nrows=(y-x),strip.white = T,blank.lines.skip=T, header = F, sep= "\n")
-      SpXLibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
+      Lib<-x
+      SpXLibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
                        CollisionEnergy=CollisionEnergy, 
-                       Filter=Filter, TMTPro=F, Source=fileType, topX=topX, 
+                       Filter=Filter, TMTPro=FALSE, Source=fileType, topX=topX, 
                        cutoff=cutoff,massOffset, IonTypes=IonTypes)
     },
-    x=NamesListX, y=NamesListY, z=LibraryPath,
-    BPPARAM=SnowParam(workers = parallel::detectCores()-4),SIMPLIFY = FALSE) %>% bind_rows}
+    BPPARAM=SnowParam(workers = 6)) %>% bind_rows
+}
+
+  
   
   if(fileType=="Prosit"){
-    resultsTable<-bpmapply(function(x,y,z) {
+    resultsTable<-bplapply(chunklist, function(x) {
       source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
-      Lib<-fread(z, skip=x, nrows=(y-x),strip.white = T,blank.lines.skip=T, header = F, sep= "\n")
-      LibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
+      Lib<-x
+      LibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
                     CollisionEnergy=CollisionEnergy, 
-                    Filter=Filter, TMTPro=F, Source=fileType, topX=topX, 
+                    Filter=Filter, TMTPro=FALSE, Source=fileType, topX=topX, 
                     cutoff=cutoff,massOffset, IonTypes=IonTypes)
-    },
-    x=NamesListX, y=NamesListY, z=LibraryPath,
-    BPPARAM=SnowParam(workers = parallel::detectCores()-4),SIMPLIFY = FALSE) %>% bind_rows
+    }, BPPARAM=SnowParam(workers = 6)) %>% bind_rows
     
   }
+
+
+
+  
   
   if(fileType!="Skyline"){
     #Builds tables
@@ -142,10 +154,10 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
     
     ##Writing new DB
     conn4 <- dbConnect(SQLite(),DBoutput)
-    dbWriteTable(conn4,"CompoundTable", MasterCompoundTable, overwrite = T, append = F, field.types = c(CompoundId="INTEGER PRIMARY KEY", Synonyms="BLOB_TEXT", Structure="BLOB_TEXT"))
-    dbWriteTable(conn4, "SpectrumTable", MasterSpectrumTable, overwrite = T, append = F, field.types = c( SpectrumId = "INTEGER PRIMARY KEY", CompoundId ="INTEGER REFERENCES [CompoundTable]", blobMass="BLOB", blobIntensity="BLOB", RetentionTime = "DOUBLE", ScanNumber ="INTEGER", PrecursorMass="DOUBLE", NeutralMass="DOUBLE", blobAccuracy = "BLOB",blobFlags = "BLOB",blobResolution = "BLOB",blobNoises = "BLOB",blobTopPeaks = "BLOB", Version = "INTEGER"))
-    dbWriteTable(conn4, "HeaderTable", HeaderTable, overwrite = T, append = F, field.types = c(version = "INTEGER NOT NULL DEFAULT 0", CreationDate="TEXT",LastModifiedDate="TEXT", Description="TEXT", Company="TEXT", ReadOnly = "BOOL", UserAccess="TEXT", PartialEdits = "BOOL"))
-    dbWriteTable(conn4, "MaintenanceTable", MaintenanceTable, overwrite = T, append = F, field.types = c(CreationDate="TEXT",NoofCompoundsModified = "INTEGER", Description="TEXT"))
+    dbWriteTable(conn4,"CompoundTable", MasterCompoundTable, overwrite = TRUE, append = F, field.types = c(CompoundId="INTEGER PRIMARY KEY", Synonyms="BLOB_TEXT", Structure="BLOB_TEXT"))
+    dbWriteTable(conn4, "SpectrumTable", MasterSpectrumTable, overwrite = TRUE, append = F, field.types = c( SpectrumId = "INTEGER PRIMARY KEY", CompoundId ="INTEGER REFERENCES [CompoundTable]", blobMass="BLOB", blobIntensity="BLOB", RetentionTime = "DOUBLE", ScanNumber ="INTEGER", PrecursorMass="DOUBLE", NeutralMass="DOUBLE", blobAccuracy = "BLOB",blobFlags = "BLOB",blobResolution = "BLOB",blobNoises = "BLOB",blobTopPeaks = "BLOB", Version = "INTEGER"))
+    dbWriteTable(conn4, "HeaderTable", HeaderTable, overwrite = TRUE, append = F, field.types = c(version = "INTEGER NOT NULL DEFAULT 0", CreationDate="TEXT",LastModifiedDate="TEXT", Description="TEXT", Company="TEXT", ReadOnly = "BOOL", UserAccess="TEXT", PartialEdits = "BOOL"))
+    dbWriteTable(conn4, "MaintenanceTable", MaintenanceTable, overwrite = TRUE, append = F, field.types = c(CreationDate="TEXT",NoofCompoundsModified = "INTEGER", Description="TEXT"))
     dbDisconnect(conn4)
     
     dbDisconnect(conn4)

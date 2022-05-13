@@ -114,16 +114,16 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   PeptideSequence <- gsub('\\[.+\\]', '', PeptideSequence, perl = T)
   PeptideSequence <- gsub('n', '', PeptideSequence, perl = T)
   
-  #Retrieve mod string for further processing 
-  ModString<- stri_extract_first_regex(HeaderLists,"ModString=[^=]+")
-  ModString<- ModString[!is.na(ModString)]
-  ModString<- str_extract(ModString,"//[^=]+")
-  ModString<- gsub('.{6}$', '', ModString, perl = T)
-  ModString<- gsub('^.{2}', '', ModString, perl = T)
-  ModString<- gsub(' ', '', ModString, perl = T)
-  
-  unimodTable <- read.csv("~/Repos/MSPtoDB/testMods.csv")
-  ModString<-stri_replace_all_fixed(ModString, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
+  # #Retrieve mod string for further processing 
+  # ModString<- stri_extract_first_regex(HeaderLists,"ModString=[^=]+")
+  # ModString<- ModString[!is.na(ModString)]
+  # ModString<- str_extract(ModString,"//[^=]+")
+  # ModString<- gsub('.{6}$', '', ModString, perl = T)
+  # ModString<- gsub('^.{2}', '', ModString, perl = T)
+  # ModString<- gsub(' ', '', ModString, perl = T)
+  # 
+  # unimodTable <- read.csv("~/Repos/MSPtoDB/testMods.csv")
+  # ModString<-stri_replace_all_fixed(ModString, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
   
   
   Charge<-as.numeric(str_sub(Names,-1 ))
@@ -147,10 +147,11 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   #   PrecursorMasses[isK]+304.207146/Charge[isK]
   # } else {  PrecursorMasses[isK]}
   
-  rm(HeaderLists)
+#  rm(HeaderLists)
   
   PeakLists<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)),SIMPLIFY = T)
   PeakLists<-mapply(function(x) {str_split(PeakLists[[x]], "\\t",simplify = T)}, x = seq(from=1,to=length(PeakLists), by=1))
+  PeakLists<-lapply(PeakLists, function(x) { x[1:3]})
   PeakLists <- do.call("rbind", PeakLists)
   
   dt<-data.table(PeakLists)
@@ -159,18 +160,18 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   dt$masses<-as.numeric(dt$masses)
   dt$int<-as.numeric(dt$int)
   
-  UnSorted<- any(unlist(mapply(function(x,y) {is.unsorted(dt[[1]][x:y])}, 
-                               x= c(0, cumsum(NumPeaks[1:4]))+1 ,y= cumsum(NumPeaks[1:5]), SIMPLIFY = F)))
-  
+ # UnSorted<- any(unlist(mapply(function(x,y) {is.unsorted(dt[[1]][x:y])}, 
+  #                             x= c(0, cumsum(NumPeaks[1:4]))+1 ,y= cumsum(NumPeaks[1:5]), SIMPLIFY = F)))
+  UnSorted = FALSE
   rm(PeakLists)
   
-  dt$annotations<- gsub( "([^\\/]+$)","",dt$annotations, perl = T )
-  dt$annotations<- gsub( "/","",dt$annotations, perl = T )
-  dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
+  # dt$annotations<- gsub( "([^\\/]+$)","",dt$annotations, perl = T )
+  # dt$annotations<- gsub( "/","",dt$annotations, perl = T )
+  # dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
   
   
   # UnSorted<-F
-  if(Filter == F & !UnSorted){
+  if(Filter == FALSE & !UnSorted){
     
     
     blobMass<-(as_blob(flatten(mapply(function(x,y,z){as_blob(packBits(numToBits(as.list(dt)[[1]][x:y])))},
@@ -179,7 +180,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
     blobInt<-(as_blob(flatten(mapply(function(x,y,z){as_blob(packBits(numToBits(as.list(dt)[[2]][x:y])))},
                                      x=c(0, cumsum(NumPeaks[-length(Names)]))+1,y=cumsum(NumPeaks),SIMPLIFY = F))))
     
-  }     else if (Filter == T) {
+  }     else if (Filter == TRUE) {
     PeakDT<-mapply(function(x,y) {dt[x:y]},
                    x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = F)
     
@@ -203,33 +204,35 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
     
   }
   
-  PeakAnnotations<-mapply(function(x,y) {as.list(dt)[[3]][x:y]},
-                          x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = F)
-  
-  PeakAnnotations<-  lapply(PeakAnnotations, function(x) { paste(x, collapse = ";")})
-  s
-  
-  if(grepl("csv",massOffset$name )){
-    seqCharge <- data.frame(tstrsplit(Names, "/"))
-    seqCharge$mZ <- PrecursorMasses
-    names(seqCharge) <- c("Sequence", "charge", "mZ")
-    joined <-dplyr::left_join(seqCharge, read.csv(massOffset$datapath),by = "Sequence")
-    joined$mZ[!is.na(joined$massOffset )] <- as.numeric(joined$mZ[!is.na(joined$massOffset )])+
-      (joined$massOffset[!is.na(joined$massOffset )])/as.numeric(joined$charge[!is.na(joined$massOffset )])
-    
-    PrecursorMasses <- joined$mZ
-    joined$massOffsetTag<- ""
-    joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("MassOffset: ",joined$massOffset[!is.na(joined$massOffset)])
-    Tags<-paste0(joined$massOffsetTag," mods:",ModString," ", "ions:", PeakAnnotations )
-    
-    
-  } else {
-    Tags<-paste0("mods:",ModString," ", "ions:", PeakAnnotations)
-  }
+  # PeakAnnotations<-mapply(function(x,y) {as.list(dt)[[3]][x:y]},
+  #                         x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = F)
+  # 
+  # PeakAnnotations<-  lapply(PeakAnnotations, function(x) { paste(x, collapse = ";")})
+  # 
+  # 
+  # if(length(massOffset$name > 1)){
+  #   seqCharge <- data.frame(tstrsplit(Names, "/"))
+  #   seqCharge$mZ <- PrecursorMasses
+  #   names(seqCharge) <- c("Sequence", "charge", "mZ")
+  #   joined <-dplyr::left_join(seqCharge, read.csv(massOffset$datapath),by = "Sequence")
+  #   joined$mZ[!is.na(joined$massOffset )] <- as.numeric(joined$mZ[!is.na(joined$massOffset )])+
+  #     (joined$massOffset[!is.na(joined$massOffset )])/as.numeric(joined$charge[!is.na(joined$massOffset )])
+  #   
+  #   PrecursorMasses <- joined$mZ
+  #   joined$massOffsetTag<- ""
+  #   joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("MassOffset: ",joined$massOffset[!is.na(joined$massOffset)])
+  #   Tags<-paste0(joined$massOffsetTag," mods:",ModString," ", "ions:", PeakAnnotations )
+  #   
+  #   
+  # } else {
+    # Tags<-paste0("mods:",ModString," ", "ions:", PeakAnnotations)
+  # }
 
   parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
-                             PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,
-                             CollisionEnergy=CollisionEnergy)
+                             PrecursorMasses=PrecursorMasses,Names=Names,
+                             Tags="", 
+                             FragmentationMode="CID",
+                             CollisionEnergy="CollisionEnergy")
   
   return(parallelTable)
   
