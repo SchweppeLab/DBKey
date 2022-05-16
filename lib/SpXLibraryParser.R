@@ -63,8 +63,12 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   HeaderLists<- unlist(mapply(function(x, y) {Library[x:y]}, x = nameindexes, y = peakindexes, SIMPLIFY = T))
   PeakLists<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)))
   Comments<-HeaderLists[which(stri_detect_fixed(HeaderLists,"Comment: "))]
-  Comments<- str_split(Comments, "RetentionTime=", simplify = TRUE)
-  Comments<- str_split(Comments[,2], ",", simplify = TRUE)
+  CompoundClass<-grepl("OrigPeptide", Comments, fixed = T)
+  CompoundClass[CompoundClass == TRUE] <- "DECOY"
+  CompoundClass[CompoundClass == FALSE] <- "Forward"
+  
+  Comments<- str_split(Comments, "iRT=", simplify = TRUE)
+  Comments<- str_split(Comments[,2], " ", simplify = TRUE)
   RetentionTime <- Comments[,1]
   
   getFrag<- function(x){
@@ -111,7 +115,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   # Names[1] <- str_remove_all(Names[1], "Name: ")
   NumPeaks<-(c(nameindexes[-1], length(Library)+1) - peakindexes)-1
   
-  
+
   PeptideSequence <- gsub('.{2}$', '', Names, perl = T)
   PeptideSequence <- gsub('\\[.+\\]', '', PeptideSequence, perl = T)
   PeptideSequence <- gsub('n', '', PeptideSequence, perl = T)
@@ -233,7 +237,8 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
                              Tags="", 
                              FragmentationMode=FragmentationMode,
                              CollisionEnergy=CollisionEnergy,
-                             RetentionTime=RetentionTime)
+                             RetentionTime=RetentionTime,
+                             CompoundClass=CompoundClass)
   
   return(parallelTable)
   

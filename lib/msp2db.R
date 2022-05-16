@@ -27,7 +27,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   # Reading file in 
   if(fileType != "Skyline") {
   LibraryRead = vroom(Library$datapath, col_names = "Lib", delim = "\n",skip_empty_rows = TRUE)
-  LibraryRead<-LibraryRead$Lib
+   LibraryRead<-LibraryRead$Lib
   LibraryPath = (Library$datapath)  
   
   #Source="Prosit"
@@ -41,6 +41,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   
   #Get indices of entries between 500 lines at evenly spaced intervals 
   NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)+(x-1))[1]}, x = NamesX, y = NamesY)
+  NamesNamesList<-mapply(function(x, y) {LibraryRead[x:y][grepl("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)][[1]]}, x = NamesX, y = NamesY)
   
   #for function convienence
   NamesListX<-c(0,NamesList)
@@ -55,13 +56,15 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
    rm(LibraryRead)
   
   if(fileType=="SpectraST"){
-    resultsTable<-bplapply(chunklist, function(x) {
+    resultsTable<-bpmapply( function(x) {
       source("~/Repos/MSPtoDB/lib/SpXLibraryParser.R")
-      Lib<-x
-      SpXLibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
-                       CollisionEnergy=CollisionEnergy, 
-                       Filter=Filter, TMTPro=FALSE, Source=fileType, topX=topX, 
-                       cutoff=cutoff,massOffset, IonTypes=IonTypes)
+      Lib<-fread("C:\\TPP\\thermo\\yeast_decoy.sptxt",skip = NamesNamesList[1], nrows = 250000, sep = "\n", sep2= " ", header = F )
+      Lib<-Lib$V1
+## need to filter out last name occurence   
+      SpXLibraryParser(Library=x, FragmentationMode="CID", MassAnalyzer="IT", 
+                       CollisionEnergy="35", 
+                       Filter=FALSE, TMTPro=FALSE, Source="SpectraST", topX=150, 
+                       cutoff=0, IonTypes=NA)
     },
     BPPARAM=SnowParam(workers = 6)) %>% bind_rows
 }
@@ -88,7 +91,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
     #Builds tables
     MasterCompoundTable <- data.table(
       CompoundId = seq(1, length(resultsTable$Names), by=1), 
-      Formula = "", 
+      Formula = "YEAST", 
       Name = unlist(resultsTable$Names),
       Synonyms = "",
       Tag = unlist(resultsTable$Tags),
@@ -100,7 +103,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
       PubChemId= "",
       Structure= "",
       mzCloudId= as.integer(NA),
-      CompoundClass= "",
+      CompoundClass= resultsTable$CompoundClass,
       SmilesDescription= "",
       InChiKey= "")
     
