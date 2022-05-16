@@ -53,9 +53,12 @@ blobIntFunctionCmp<- cmpfun(blobIntFunction)
 SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, 
                              Filter=FALSE, TMTPro=FALSE, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
   
+  
   firstName<-grep("Name", Library[1:100])[1]
   Library<-Library[firstName:length(Library)]
   
+  LastName<-grep("LibID: ",rev(Library)[0:1000])[1]
+  Library<-Library[0:(length(Library)-LastName-1)]
   
   nameindexes<-c(which(stri_detect_regex(Library,"^Name: ")))
   headerLength<- which(stri_detect_regex(Library[1:100],"(?i)peaks:"))[1]-nameindexes[1]
@@ -109,16 +112,17 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   HeaderLists<-gsub("FullName: ", "", HeaderLists, fixed = T)
   HeaderLists<-gsub("AvePrecursorMz:", "", HeaderLists, fixed = T)
   
-  
+  HeaderLists<-HeaderLists[!is.na(HeaderLists)]
   Names<- HeaderLists[stri_detect_regex(HeaderLists, "^Name: ")]
   Names <- str_remove_all(Names, "Name: ")
   # Names[1] <- str_remove_all(Names[1], "Name: ")
-  NumPeaks<-(c(nameindexes[-1], length(Library)+1) - peakindexes)-1
+ # NumPeaks<-(c(nameindexes[-1], length(Library)+1) - peakindexes)-1
+  NumPeaks<- HeaderLists[stri_detect_regex(HeaderLists, "NumPeaks:")]
+  NumPeaks <- str_remove_all(NumPeaks, "NumPeaks: ")
   
-
   PeptideSequence <- gsub('.{2}$', '', Names, perl = T)
-  PeptideSequence <- gsub('\\[.+\\]', '', PeptideSequence, perl = T)
-  PeptideSequence <- gsub('n', '', PeptideSequence, perl = T)
+  PeptideSequence <- gsub('[^[:alpha:]]', '', PeptideSequence, perl = T)
+  PeptideSequence <- gsub('[[:lower:]]', '', PeptideSequence, perl = T)
   
   # #Retrieve mod string for further processing 
   # ModString<- stri_extract_first_regex(HeaderLists,"ModString=[^=]+")
@@ -155,7 +159,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   
 #  rm(HeaderLists)
   
-  PeakLists<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)),SIMPLIFY = T)
+  PeakLists<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-2, length(Library)),SIMPLIFY = T)
   PeakLists<-mapply(function(x) {str_split(PeakLists[[x]], "\\t",simplify = T)}, x = seq(from=1,to=length(PeakLists), by=1))
   PeakLists<-lapply(PeakLists, function(x) { x[,1:3]})
   PeakLists <- do.call("rbind", PeakLists)
@@ -230,11 +234,11 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   # } else {
     # Tags<-paste0("mods:",ModString," ", "ions:", PeakAnnotations)
   # }
-   Tags<-paste0( "ions:", PeakAnnotations)
+   Tags<-lapply(PeakAnnotations, function(x){paste0( "ions:", x)})
    
   parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
                              PrecursorMasses=PrecursorMasses,Names=Names,
-                             Tags="", 
+                             Tags=Tags, 
                              FragmentationMode=FragmentationMode,
                              CollisionEnergy=CollisionEnergy,
                              RetentionTime=RetentionTime,
