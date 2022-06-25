@@ -64,8 +64,30 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   HeaderLists<-gsub("FullName: ", "", HeaderLists, fixed = TRUE)
   HeaderLists<-gsub("AvePrecursorMz:", "", HeaderLists, fixed = TRUE)
   Comments<-HeaderLists[which(stri_detect_fixed(HeaderLists,"Comment: "))]
-  Comments<- str_split(Comments, "iRT=", simplify = T)
-  RetentionTime <- Comments[,2]
+  Comments<- str_split(Comments, "=", simplify = T)
+  Mods<- str_split(Comments[,5], "//", simplify = T)
+  Mods<- str_split(Mods[,2], ";", simplify = T)
+  
+  unimodTable <- read.csv("~/Repos/MSPtoDB/testMods.csv")
+
+  modparser <- function(x) {
+    out<-str_split(x,"@",simplify = T)
+    mod<-out[,1]
+    mod<-stri_replace_all_fixed(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
+    mod<-trimws(mod)
+    pos<-str_split(out[,2], "[[:alpha:]]",simplify = T)[,2]
+    pos<-str_split(pos, "/", simplify = T)[,1]
+    pos[pos<=0 & pos!=""] <- 0
+    returnstring<-pos
+    returnstring[returnstring!=""] <- paste0(mod[returnstring!=""],"@",returnstring[returnstring!=""],";")
+    
+    return(returnstring)
+  }
+  Modsoutput<-apply(Mods,2,modparser,simplify = TRUE)
+  Modsoutput<-apply(Modsoutput, 1, function(x) {paste0(x,collapse = "")})
+  
+    
+  RetentionTime <- str_split(Comments[,6], " ",simplify = TRUE)[,1]
   
     
     getFrag<- function(x){
@@ -111,16 +133,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
 
   #PeptideSequence <- gsub('.{2}$', '', Names, perl = TRUE)
   
-  #Retrieve mod string for further processing 
-  ModString<- stri_extract_first_regex(HeaderLists,"ModString=[^=]+")
-  ModString<- ModString[!is.na(ModString)]
-  ModString<- str_extract(ModString,"//[^=]+")
-  ModString<- gsub('.{6}$', '', ModString, perl = TRUE)
-  ModString<- gsub('^.{2}', '', ModString, perl = TRUE)
-  ModString<- gsub(' ', '', ModString, perl = TRUE)
 
-  unimodTable <- read.csv("~/Repos/MSPtoDB/testMods.csv")
-  ModString<-stri_replace_all_fixed(ModString, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = FALSE)
   
 
   Charge<-as.numeric(str_sub(Names,-1 ))
@@ -149,7 +162,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   
 rm(HeaderLists)
   
-  PeakLists<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)),SIMPLIFY = TRUE)
+  PeakLists1<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)),SIMPLIFY = TRUE)
   PeakLists<-mapply(function(x) {str_split(PeakLists[[x]], "\\t",simplify = TRUE)}, x = seq(from=1,to=length(PeakLists), by=1))
   PeakLists <- do.call("rbind", PeakLists)
 
@@ -167,16 +180,7 @@ rm(HeaderLists)
   dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
   
 
-  if(Filter == FALSE & !UnSorted){
-
-    
-   blobMass<-(as_blob(flatten(mapply(function(x,y,z){as_blob(packBits(numToBits(as.list(dt)[[1]][x:y])))},
-     x=c(0, cumsum(NumPeaks[-length(Names)]))+1,y=cumsum(NumPeaks),SIMPLIFY = FALSE))))
-  
-    blobInt<-(as_blob(flatten(mapply(function(x,y,z){as_blob(packBits(numToBits(as.list(dt)[[2]][x:y])))},
-               x=c(0, cumsum(NumPeaks[-length(Names)]))+1,y=cumsum(NumPeaks),SIMPLIFY = FALSE))))
-    
-  }     else if (Filter == TRUE) {
+    {
     PeakDT<-mapply(function(x,y) {dt[x:y]},
           x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
 
@@ -187,23 +191,24 @@ rm(HeaderLists)
 
     blobInt<-(as_blob(flatten(mapply(blobIntFunctionCmp,PeakDTOrganize, SIMPLIFY = FALSE))))
     
-  } else {
-    PeakDT<-mapply(function(x,y) {dt[x:y]},
-                   x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
-
-    PeakDTOrganize<- lapply(PeakDT, function(x){OrdPeakCmp(x)})
-    rm(PeakDT)
-
-    blobMass<-(as_blob(flatten(mapply(blobMassFunctionCmp,PeakDTOrganize, SIMPLIFY = FALSE))))
-
-    blobInt<-(as_blob(flatten(mapply(blobIntFunctionCmp,PeakDTOrganize, SIMPLIFY = FALSE))))
-
-  }
-  
-  PeakAnnotations<-mapply(function(x,y) {as.list(dt)[[3]][x:y]},
-                          x= c(0, cumsum(NumPeaks[-length(Names)])+1) ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
-
-  PeakAnnotations<-  lapply(PeakAnnotations, function(x) { paste(x, collapse = ";")})
+    PeakAnnotations<-lapply(PeakDTOrganize, function(x) {
+      paste(x$annotations,collapse=";")
+    })
+    
+    
+  } #else {
+  #   PeakDT<-mapply(function(x,y) {dt[x:y]},
+  #                  x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
+  # 
+  #   PeakDTOrganize<- lapply(PeakDT, function(x){OrdPeakCmp(x)})
+  #   rm(PeakDT)
+  # 
+  #   blobMass<-(as_blob(flatten(mapply(blobMassFunctionCmp,PeakDTOrganize, SIMPLIFY = FALSE))))
+  # 
+  #   blobInt<-(as_blob(flatten(mapply(blobIntFunctionCmp,PeakDTOrganize, SIMPLIFY = FALSE))))
+  # 
+  # }
+  # 
 
   # if(length(massOffset$name > 1)){
   # seqCharge <- data.frame(tstrsplit(Names, "/"))
@@ -221,7 +226,7 @@ rm(HeaderLists)
   # 
   # } else {
    # Tags<-paste0("mods:",ModString," ", "ions:", PeakAnnotations)
-    Tags<-paste0( "ions:", PeakAnnotations)
+    Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)
   #}
      parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
                              PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,

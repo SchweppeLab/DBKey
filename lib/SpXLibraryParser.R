@@ -9,22 +9,23 @@ OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
   
   dt<-x[which(x$int >0 ),]
   
-  if(topX < length(dt$masses)) {
-    peakNum <- min(topX, length(dt$masses))
-    dt$rank<- frank(dt$int)
-    dt<-dt[dt$rank<=topX,]
-    dt[,rank:=NULL]
-  }
-  if(cutoff>0) {
-    maxPeak<-max(dt$int)
-    dt<-dt[(dt$int/maxPeak)*100>cutoff,]
-  }
-  if(!is.null(IonTypes)) {
-    dt<-dt[!(substr(dt$annotations,1,1) %in% IonTypes)]
-    
-  }
+  # if(topX < length(dt$masses)) {
+  #   peakNum <- min(topX, length(dt$masses))
+  #   dt$rank<- frank(-dt$int,ties.method = "first")
+  #   dt<-dt[dt$rank<=topX,]
+  #   dt[,rank:=NULL]
+  # }
+  dt<-dt[dt$annotations!="?",]
+  # if(cutoff>0) {
+  #   maxPeak<-max(dt$int)
+  #   dt<-dt[(dt$int/maxPeak)*100>cutoff,]
+  # }
+  # if(!is.null(IonTypes)) {
+  #   dt<-dt[!(substr(dt$annotations,1,1) %in% IonTypes)]
+  #   
+  # }
   
-  dt<-setkey(dt, masses)
+  # dt<-setkey(dt, masses)
   return(dt)
 }
 
@@ -51,14 +52,14 @@ blobIntFunctionCmp<- cmpfun(blobIntFunction)
 
 
 SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, 
-                             Filter=FALSE, TMTPro=FALSE, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
+                             Filter=TRUE, TMTPro=FALSE, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
   
   
   firstName<-grep("Name", Library[1:100])[1]
   Library<-Library[firstName:length(Library)]
   
-  LastName<-grep("LibID: ",rev(Library)[0:1000])[1]
-  Library<-Library[0:(length(Library)-LastName-1)]
+ # LastName<-grep("LibID: ",rev(Library)[0:1000])[1]
+  #Library<-Library[0:(length(Library)-LastName-1)]
   
   nameindexes<-c(which(stri_detect_regex(Library,"^Name: ")))
   headerLength<- which(stri_detect_regex(Library[1:100],"(?i)peaks:"))[1]-nameindexes[1]
@@ -66,13 +67,40 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   HeaderLists<- unlist(mapply(function(x, y) {Library[x:y]}, x = nameindexes, y = peakindexes, SIMPLIFY = T))
   PeakLists<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)))
   Comments<-HeaderLists[which(stri_detect_fixed(HeaderLists,"Comment: "))]
-  CompoundClass<-grepl("OrigPeptide", Comments, fixed = T)
+ # CompoundClass<-grepl("Spec=Decoy", Comments, fixed = T)
+  CompoundClass<-grepl("Remark", Comments, fixed = T)
   CompoundClass[CompoundClass == TRUE] <- "DECOY"
   CompoundClass[CompoundClass == FALSE] <- "Forward"
   
-  Comments<- str_split(Comments, "iRT=", simplify = TRUE)
-  Comments<- str_split(Comments[,2], " ", simplify = TRUE)
-  RetentionTime <- Comments[,1]
+ # Comments<- str_split(Comments, "RetentionTime=|iRT=", simplify = TRUE)
+  #Comments<- str_split(Comments[,2], " |,", simplify = TRUE)
+  #RetentionTime <- Comments[,1]
+  RetentionTime <- ""
+  
+  ModComments<-HeaderLists[which(stri_detect_fixed(HeaderLists,"Comment: "))]
+  ModComments<- str_split(ModComments, "Mods=", simplify = T)
+  Mods<- str_split(ModComments[,2], " ", simplify = T)[,1]
+  Mods<- str_split(Mods, "/", simplify = T)[,-1]
+  
+  unimodTable <- read.csv("~/Repos/MSPtoDB/testMods.csv")
+  
+  modparser <- function(x) {
+    out<-str_split(x,",",simplify = T)
+    mod<-out[,3]
+    mod<-stri_replace_all_fixed(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
+    mod<-trimws(mod)
+    pos<-out[,1]
+  #  pos<-str_split(pos, "/", simplify = T)[,1]
+    pos[pos<=0 & pos!=""] <- 0
+    returnstring<-pos
+    returnstring[returnstring!=""] <- paste0(mod[returnstring!=""],"@",returnstring[returnstring!=""],";")
+    
+    return(returnstring)
+  }
+  
+  #Modsoutput<-apply(Mods,2,modparser,simplify = TRUE)
+  #Modsoutput<-apply(Modsoutput, 1, function(x) {paste0(x,collapse = "")})
+  Modsoutput<- ""
   
   getFrag<- function(x){
     match<- unique(stri_extract_all_fixed(x, c("CID","HCD"), simplify = TRUE, omit_no_match = T))
@@ -115,6 +143,9 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   HeaderLists<-HeaderLists[!is.na(HeaderLists)]
   Names<- HeaderLists[stri_detect_regex(HeaderLists, "^Name: ")]
   Names <- str_remove_all(Names, "Name: ")
+  Names <- gsub('\\[[^\\]]*\\]', '', Names, perl=T)
+  Names <- gsub('n', '', Names, perl=T)
+  
   # Names[1] <- str_remove_all(Names[1], "Name: ")
  # NumPeaks<-(c(nameindexes[-1], length(Library)+1) - peakindexes)-1
   NumPeaks<- HeaderLists[stri_detect_regex(HeaderLists, "NumPeaks:")]
@@ -124,17 +155,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   PeptideSequence <- gsub('[^[:alpha:]]', '', PeptideSequence, perl = T)
   PeptideSequence <- gsub('[[:lower:]]', '', PeptideSequence, perl = T)
   
-  # #Retrieve mod string for further processing 
-  # ModString<- stri_extract_first_regex(HeaderLists,"ModString=[^=]+")
-  # ModString<- ModString[!is.na(ModString)]
-  # ModString<- str_extract(ModString,"//[^=]+")
-  # ModString<- gsub('.{6}$', '', ModString, perl = T)
-  # ModString<- gsub('^.{2}', '', ModString, perl = T)
-  # ModString<- gsub(' ', '', ModString, perl = T)
-  # 
-  # unimodTable <- read.csv("~/Repos/MSPtoDB/testMods.csv")
-  # ModString<-stri_replace_all_fixed(ModString, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
-  
+
   
   Charge<-as.numeric(str_sub(Names,-1 ))
   # LastAA<-str_sub(Names,-3,-3 )
@@ -149,17 +170,8 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   
   PrecursorMasses <- gsub("[[:alpha:]]|:", "", PrecursorMasses)
   
-  #   PrecursorMasses<- if(TMTPro == TRUE) {
-  #   as.numeric(PrecursorMasses)+304.207146/Charge
-  # } else  {PrecursorMasses}
-  # 
-  # PrecursorMasses[isK] <- if(TMTPro == TRUE) {
-  #   PrecursorMasses[isK]+304.207146/Charge[isK]
-  # } else {  PrecursorMasses[isK]}
-  
-#  rm(HeaderLists)
-  
-  PeakLists<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-2, length(Library)),SIMPLIFY = T)
+
+  PeakLists<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)),SIMPLIFY = T)
   PeakLists<-mapply(function(x) {str_split(PeakLists[[x]], "\\t",simplify = T)}, x = seq(from=1,to=length(PeakLists), by=1))
   PeakLists<-lapply(PeakLists, function(x) { x[,1:3]})
   PeakLists <- do.call("rbind", PeakLists)
@@ -168,6 +180,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   dt<-dt[,1:3]
   colnames(dt) <- c("masses", "int", "annotations")
   dt$masses<-as.numeric(dt$masses)
+  dt<-dt[!is.na(dt$masses),]
   dt$int<-as.numeric(dt$int)
   
   # UnSorted<- any(unlist(mapply(function(x,y) {is.unsorted(dt[[1]][x:y])}, 
@@ -175,7 +188,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   UnSorted = FALSE
   rm(PeakLists)
   dt$annotations <- str_split(dt$annotations, "/", simplify = T)[,1]
-
+  
   
   # UnSorted<-F
   if(Filter == FALSE & !UnSorted){
@@ -234,7 +247,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   # } else {
     # Tags<-paste0("mods:",ModString," ", "ions:", PeakAnnotations)
   # }
-   Tags<-lapply(PeakAnnotations, function(x){paste0( "ions:", x)})
+   Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)
    
   parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
                              PrecursorMasses=PrecursorMasses,Names=Names,
