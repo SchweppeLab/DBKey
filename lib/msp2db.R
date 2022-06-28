@@ -26,22 +26,17 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   
   # Reading file in 
   if(fileType != "Skyline") {
-  LibraryRead = vroom(Library$datapath, col_names = "Lib", delim = "\n",skip_empty_rows = TRUE)
+    LibraryPath<-Library$datapath
+    LibraryRead = vroom(LibraryPath, col_names = "Lib", delim = "\n",skip_empty_rows = FALSE)
    LibraryRead<-LibraryRead$Lib
-  LibraryPath = (Library$datapath)  
-  
-  #Source="Prosit"
-  
-  #List of interval to search for entry beginnings 
-  chunksize <- round((length(LibraryRead)/480))
-  chunksize<-min(length(LibraryRead),chunksize)
+  chunksize<-min(length(LibraryRead),500000)
   
   NamesX<-seq(chunksize,length(LibraryRead)-500,by=chunksize)
   NamesY<-seq(chunksize+500,length(LibraryRead),by=chunksize)
   
   #Get indices of entries between 500 lines at evenly spaced intervals 
-  #NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)+(x-1))[1]}, x = NamesX, y = NamesY)
-  NamesNamesList<-mapply(function(x, y) {LibraryRead[x:y][grepl("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)][[1]]}, x = NamesX, y = NamesY)
+  NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)+(x-1))[1]}, x = NamesX, y = NamesY)
+#  NamesNamesList<-mapply(function(x, y) {LibraryRead[x:y][grepl("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)][[1]]}, x = NamesX, y = NamesY)
   
   #for function convienence
   NamesListX<-c(0,NamesList)
@@ -58,40 +53,43 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   if(fileType=="SpectraST"){
     resultsTable<-bpmapply( function(x,y,z) {
       source("~/Repos/MSPtoDB/lib/SpXLibraryParser.R")
-      Lib<-fread("C:\\TPP\\thermo\\human2_decoy.sptxt",skip = x, nrows = z, sep = "\n",  header = FALSE )
-      SpXLibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
-                       CollisionEnergy=CollisionEnergy, 
-                       Filter=Filter, TMTPro=FALSE, Source=fileType, topX=topX, 
-                       cutoff=cutoff,massOffset, IonTypes=IonTypes)
-    },x=c(0,NamesNamesList),y=LibraryPath,z=(chunksize+300),
-    BPPARAM=SnowParam(workers = 4),SIMPLIFY = FALSE) %>% bind_rows
-}
+      Lib<-""
+      Lib<-fread(z,skip = x-1, nrows = (y-x), blank.lines.skip=FALSE, sep = "\n",  header = FALSE )
+      SpXLibraryParser(Library=Lib$V1, FragmentationMode="CID", MassAnalyzer="IT", 
+                       CollisionEnergy="35", 
+                       Filter=FALSE, TMTPro=FALSE, Source="SpectraST", topX=150, 
+                       cutoff=0, IonTypes=NA)
+    },
+    x=NamesListX, y=NamesListY, z=LibraryPath,
+    BPPARAM=SerialParam(),SIMPLIFY = FALSE) %>% bind_rows
+  }
 
-  
-  
+  # rtFix <- as.numeric(resultsTable$RetentionTime)
+  # rtFix<- (rtFix/max(rtFix)*120)
+  # resultsTable$RetentionTime <- as.character(rtFix)
    if(fileType=="Prosit"){
      resultsTable<-bpmapply(function(x,y,z) {
        source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
-       Lib<-fread(z, skip=x, nrows=(y-x),strip.white = TRUE,blank.lines.skip=TRUE, header = FALSE, sep= "\n")
-       LibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
-                     CollisionEnergy=CollisionEnergy, 
-                     Filter=Filter, TMTPro=FALSE, Source=fileType, topX=topX, 
+       Lib<-fread(z, skip=x-1, nrows=(y-x),strip.white = TRUE,header = FALSE, sep= "\n")
+       LibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
+                     CollisionEnergy=CollisionEnergy,
+                     Filter=Filter, TMTPro=FALSE, Source=fileType, topX=topX,
                      cutoff=cutoff,massOffset, IonTypes=IonTypes)
      },
      x=NamesListX, y=NamesListY, z=LibraryPath,
      BPPARAM=SnowParam(workers = parallel::detectCores()-4),SIMPLIFY = FALSE) %>% bind_rows
-     
+
    }
 
 
 
   
   
-  if(fileType!="Skyline"){
-    #Builds tables
+ if(fileType!="Skyline"){
+ #Builds tables
     MasterCompoundTable <- data.table(
       CompoundId = seq(1, length(resultsTable$Names), by=1), 
-      Formula = "HUMAN", 
+      Formula = "", 
       Name = unlist(resultsTable$Names),
       Synonyms = "",
       Tag = unlist(resultsTable$Tags),
@@ -121,7 +119,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
       Polarity= "+",
       FragmentationMode= "CID",
       IonizationMode= "ESI",
-      MassAnalyzer= "OT",
+      MassAnalyzer= "IT",
       InstrumentName= "",
       InstrumentOperator= "",
       RawFileURL= "",
