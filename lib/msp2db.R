@@ -29,7 +29,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
     LibraryPath<-Library$datapath
     LibraryRead = vroom(LibraryPath, col_names = "Lib", delim = "\n",skip_empty_rows = FALSE)
    LibraryRead<-LibraryRead$Lib
-  #chunksize<-min(length(LibraryRead),chunksize)
+  chunksize<-min(length(LibraryRead),500000)
   
   NamesX<-seq(chunksize,length(LibraryRead)-500,by=chunksize)
   NamesY<-seq(chunksize+500,length(LibraryRead),by=chunksize)
