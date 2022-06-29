@@ -73,6 +73,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   Mods<-sapply(AltComments,stringFinder)
   
   unimodTable <- read.csv("~/Repos/MSPtoDB/unimod_custom.csv")
+  unimodTable$mod <- paste("\\b",unimodTable$mod,"\\b", sep="") #Add word boundaries to treat as regex for exact match
 
   modparser <- function(x) { #Function takes in a single full ModString
     remove_modstring<-str_split(x,"//",simplify = T)[,2] #Remove the peptide sequence and "ModString=" content
