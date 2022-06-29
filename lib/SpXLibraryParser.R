@@ -82,7 +82,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   Mods<- str_split(ModComments[,2], " ", simplify = T)[,1]
   Mods<- str_split(Mods, "/", simplify = T)[,-1]
   
-  unimodTable <- read.csv("~/Repos/MSPtoDB/testMods.csv")
+  unimodTable <- read.csv("~/Repos/MSPtoDB/unimod_custom.csv")
   
   modparser <- function(x) {
     out<-str_split(x,",",simplify = T)
