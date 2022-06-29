@@ -6,10 +6,9 @@ First, users will need to clone a local copy of the repository.
 
 ``` git clone https://github.com/SchweppeLab/MSPtoDB.git ```
 
-Next, change directory into the project and switch to the 'docker' branch of the SchweppeLab/MSPtoDB project.
+Next, change directory into the project.
 ```
 cd MSPtoDB
-git checkout chunkedDockerToMain
 ```
 
 ## Building the docker image:
