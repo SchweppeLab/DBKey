@@ -9,7 +9,7 @@ First, users will need to clone a local copy of the repository.
 Next, change directory into the project and switch to the 'docker' branch of the SchweppeLab/MSPtoDB project.
 ```
 cd MSPtoDB
-git checkout docker
+git checkout chunkedDockerToMain
 ```
 
 ## Building the docker image:
@@ -18,7 +18,9 @@ If it is not installed, please visit the docker website for the relevant directi
 
 Once docker is installed, we may build a copy of the image like so:
 
-``` docker-compose build dbkey ```
+``` docker-compose build ```
+or
+``` docker compose build ```
 
 This process may take several minutes for the relevant base images to be pulled, and dependencies to be installed.
 
@@ -26,8 +28,10 @@ This process may take several minutes for the relevant base images to be pulled,
 
 Finally, one may launch a container using the following command:
 
-```docker-compose up -d dbkey```
+```docker-compose up -d msptodb```
+or
+```docker compose up -d```
 
-In this case, we have opened the local host http port 80 (i.e., 127.0.0.1:80) for the Shiny server to communicate through.
+In this case, we have opened the local host http port 3838 (i.e., 127.0.0.1:3838) for the Shiny server to communicate through.
 
-Simply open your favorite web browser and navigate to ```127.0.0.1:80```
+Simply open your favorite web browser and navigate to ```127.0.0.1:3838```

@@ -1,9 +1,8 @@
-FROM rocker/shiny
+FROM wbarshop/msptodb_base
 MAINTAINER Direct All Questions Directly To Devin Schweppe "dkschwep@uw.edu"
 
+RUN mkdir /root/Repos/
+COPY . /root/Repos/MSPtoDB/
 
-RUN R -e "install.packages(c('shiny','rmarkdown','shinydashboard','RSQLite','stringr','stringi','dplyr','readr','data.table','purrr','blob','shinybusy','BiocParallel','compiler','vroom','shinyWidgets'), repos='https://cran.rstudio.com/')"
-
-
-RUN R -e "install.packages(c('shiny','rmarkdown','shinydashboard','RSQLite','stringr','stringi','dplyr','readr','data.table','purrr','blob','shinybusy'), repos='https://cran.rstudio.com/')"
-
+EXPOSE 3838
+CMD ["Rscript", "/root/Repos/MSPtoDB/shiny/app.R"]

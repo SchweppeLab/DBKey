@@ -131,7 +131,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
       blobFlags="",
       blobTopPeaks="",
       Version="",
-      CreationDate="",
+      CreationDate=NA,
       Curator="",
       CurationType="",
       PrecursorIonType="",
@@ -148,7 +148,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
       PartialEdits= NA)
     
     MaintenanceTable <- data.frame(
-      CreationDate =NA,
+      CreationDate = gsub("-"," ",Sys.Date()),
       NoofCompoundsModified=NA,
       Description=NA
     )
