@@ -1,15 +1,16 @@
 version: "3.0"
 
 services:
-  dbkey:
-    container_name: dbkey
+  msptodb:
+    image: wbarshop/msptodb
+    container_name: msptodb
     build:
       context: .
       dockerfile: Dockerfile
     # restart: always
     user: 'root'
     ports:
-      - '80:3838'
+      - '3838:3838'
     volumes:
       - 'dbkey_logs:/var/log/shiny-server'
       - './mountpoints/apps:/srv/shiny-server'

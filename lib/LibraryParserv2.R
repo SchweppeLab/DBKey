@@ -54,7 +54,6 @@ blobIntFunctionCmp<- cmpfun(blobIntFunction)
 LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, 
                           Filter=FALSE, TMTPro=FALSE, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
 
-  
   nameindexes<-c(which(stri_detect_fixed(Library,"Name: ")))
   headerLength<- which(stri_detect_regex(Library[1:100],"(?i)peaks:"))[1]-nameindexes[1]
   peakindexes<-nameindexes+headerLength
@@ -64,66 +63,103 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   HeaderLists<-gsub("FullName: ", "", HeaderLists, fixed = TRUE)
   HeaderLists<-gsub("AvePrecursorMz:", "", HeaderLists, fixed = TRUE)
   Comments<-HeaderLists[which(stri_detect_fixed(HeaderLists,"Comment: "))]
-  Comments<- str_split(Comments, "=", simplify = T)
-  Mods<- str_split(Comments[,5], "//", simplify = T)
-  Mods<- str_split(Mods[,2], ";", simplify = T)
-  
-  unimodTable <- read.csv("~/Repos/MSPtoDB/testMods.csv")
+  AltComments <- str_split(Comments, " (?=\\w+=)")
 
-  modparser <- function(x) {
-    out<-str_split(x,"@",simplify = T)
-    mod<-out[,1]
-    mod<-stri_replace_all_fixed(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
-    mod<-trimws(mod)
-    pos<-str_split(out[,2], "[[:alpha:]]",simplify = T)[,2]
-    pos<-str_split(pos, "/", simplify = T)[,1]
-    pos[pos<=0 & pos!=""] <- 0
-    returnstring<-pos
-    returnstring[returnstring!=""] <- paste0(mod[returnstring!=""],"@",returnstring[returnstring!=""],";")
-    
-    return(returnstring)
+  stringFinder <- function(x)
+  {
+    return(x[which(stri_detect_fixed(x,"ModString"))])
   }
-  Modsoutput<-apply(Mods,2,modparser,simplify = TRUE)
-  Modsoutput<-apply(Modsoutput, 1, function(x) {paste0(x,collapse = "")})
+
+  Mods<-sapply(AltComments,stringFinder)
   
+  unimodTable <- read.csv("~/Repos/MSPtoDB/unimod_custom.csv")
+  unimodTable$mod <- paste("\\b",unimodTable$mod,"\\b", sep="") #Add word boundaries to treat as regex for exact match
+
+  modparser <- function(x) { #Function takes in a single full ModString
+    remove_modstring<-str_split(x,"//",simplify = T)[,2] #Remove the peptide sequence and "ModString=" content
+    remove_modstring<-str_split(remove_modstring,"/",simplify = T)[,1] #remove the terminal charge "/2"
+
+    if(nchar(remove_modstring)>=1){
+      out<-str_split(remove_modstring,"; ",simplify = T)
+      out<-str_split(out,"@")
+      mods<-as.data.frame(do.call(rbind,out))
+      mod<-mods[,1]
+      mod<-stri_replace_all_fixed(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
+      mod<-trimws(mod)
+      pos<-str_split(mods[,2], "[[:alpha:]]",simplify = T)[,2]
+      pos<-str_split(pos, "/", simplify = T)[,1]
+      pos[pos<=0 & pos!=""] <- 0
+      returnstring<-pos
+      returnstring[returnstring!=""] <- paste0(mod[returnstring!=""],"@",returnstring[returnstring!=""],";", collapse = "")
+      returnstring<-trimws(returnstring,c("right"),";")
+      returnstring<-trimws(returnstring,c("right")," ")
+    } else {
+      returnstring<-""
+    }
+    return(returnstring[[1]])
+  }
+
+  Modsoutput<-sapply(Mods,modparser)
+  Modsoutput<-str_replace(Modsoutput," ","")
+
+  has_rt<-sum(sapply(AltComments, function(x) {  return(stri_detect_regex(x,"RetentionTime|iRT"))    })) # Check to see if iRT or RetentionTime is present.
+
+  if(has_rt>=1)
+  {
+    rtItems<-sapply(AltComments, function(x) {  return(x[which(stri_detect_regex(x,"RetentionTime|iRT"))])    })
+    RetentionTime <- str_split(rtItems, "=", simplify = T)[,2]
+  }
+  else
+  {
+      RetentionTime <- ""
+  }
     
-  RetentionTime <- str_split(Comments[,6], " ",simplify = TRUE)[,1]
+  getFrag<- function(x){
+    match<- unique(stri_extract_all_fixed(x, c("CID","HCD"), simplify = TRUE, omit_no_match = TRUE))
+    if(length(match)==2)
+    {
+      return(as.character(match[1]))
+    }
+    else
+    {
+      stop("Unable to determine Fragmentation method from file, please specify")
+    }
+  }
   
+  if(FragmentationMode== "Read From file")
+  {
+    FragmentationMode=getFrag(HeaderLists[1:100])
+  }
+  else
+  {
+    FragmentationMode=FragmentationMode
+  }
     
-    getFrag<- function(x){
-     match<- unique(stri_extract_all_fixed(x, c("CID","HCD"), simplify = TRUE, omit_no_match = TRUE))
-     if(length(match)==2){
-       return(as.character(match[1]))
-     } else {
-       stop("Unable to determine Fragmentation method from file, please specify")
-     }
-    }
+  rtItems<-sapply(AltComments, function(x) {  return(x[which(stri_detect_regex(x,"RetentionTime|iRT"))])    })
     
-    if(FragmentationMode== "Read From file"){
-      FragmentationMode=getFrag(HeaderLists[1:100])
-    }else{
-      FragmentationMode=FragmentationMode }
+  getCE<- function(x){
     
-    
-    
-    getCE<- function(x){
-      
-      CE<-x[stri_detect_fixed(x, "Collision")]
-      CE<-gsub("_", "", CE)
-      CE<- stri_extract_first_regex(CE,"Collisionenergy=[^/d]{2,4}")
-      CE<- gsub("Collisionenergy=", "", CE)
-      if(length(CE)==0) {
-        stop("Unable to determine Collision Energies from file, please specify")
-      } else{
-        return(CE)
-      }
-    }
-      
-    
-      CollisionEnergy<-  if(CollisionEnergy== "Read from file"){
-      getCE(HeaderLists)
+    CE<-x[stri_detect_fixed(x, "Collision")]
+    CE<-gsub("_", "", CE)
+    CE<- stri_extract_first_regex(CE,"(?:Collisionenergy=)[\\d]+[\\.]?[\\d]+(?: )")
+    CE<- gsub("Collisionenergy=", "", CE)
+    CE<-trimws(CE,c("right")," ")
+    if(length(CE)==0) {
+      stop("Unable to determine Collision Energies from file, please specify")
     } else{
-      CollisionEnergy }
+      return(CE)
+    }
+  }
+      
+    
+  CollisionEnergy<-if(CollisionEnergy== "Read from file")
+    {
+      getCE(HeaderLists)
+    }
+    else
+    {
+      CollisionEnergy
+    }
   
   Names<- HeaderLists[stri_detect_fixed(HeaderLists, "Name: ")]
   Names <- str_remove_all(Names, "Name: ")
@@ -132,8 +168,6 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   NumPeaks<-(c(nameindexes[-1], length(Library)+1) - peakindexes)-1
 
   #PeptideSequence <- gsub('.{2}$', '', Names, perl = TRUE)
-  
-
   
 
   Charge<-as.numeric(str_sub(Names,-1 ))
