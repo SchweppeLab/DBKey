@@ -9,21 +9,21 @@ OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
   
   dt<-x[which(x$int >0 ),]
   
-  # if(topX < length(dt$masses)) {
-  #   peakNum <- min(topX, length(dt$masses))
-  #   dt$rank<- frank(-dt$int,ties.method = "first")
-  #   dt<-dt[dt$rank<=topX,]
-  #   dt[,rank:=NULL]
-  # }
-  dt<-dt[dt$annotations!="?",]
-  # if(cutoff>0) {
-  #   maxPeak<-max(dt$int)
-  #   dt<-dt[(dt$int/maxPeak)*100>cutoff,]
-  # }
-  # if(!is.null(IonTypes)) {
-  #   dt<-dt[!(substr(dt$annotations,1,1) %in% IonTypes)]
-  #   
-  # }
+  if(topX < length(dt$masses)) {
+    peakNum <- min(topX, length(dt$masses))
+    dt$rank<- frank(-dt$int,ties.method = "first")
+    dt<-dt[dt$rank<=topX,]
+    dt[,rank:=NULL]
+  }
+  #dt<-dt[dt$annotations!="?",]
+  if(cutoff>0) {
+    maxPeak<-max(dt$int)
+    dt<-dt[(dt$int/maxPeak)*100>cutoff,]
+  }
+  if(!is.null(IonTypes)) {
+    dt<-dt[!(substr(dt$annotations,1,1) %in% IonTypes)]
+
+  }
   
   # dt<-setkey(dt, masses)
   return(dt)
@@ -82,7 +82,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   Mods<- str_split(ModComments[,2], " ", simplify = T)[,1]
   Mods<- str_split(Mods, "/", simplify = T)[,-1]
   
-  unimodTable <- read.csv("~/Repos/MSPtoDB/testMods.csv")
+  unimodTable <- read.csv("~/Repos/MSPtoDB/unimod_custom.csv")
   
   modparser <- function(x) {
     out<-str_split(x,",",simplify = T)
@@ -191,7 +191,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   
   
   # UnSorted<-F
-  if(Filter == FALSE & !UnSorted){
+  if(Filter == FALSE ){
     
     
     blobMass<-(as_blob(flatten(mapply(function(x,y,z){as_blob(packBits(numToBits(as.list(dt)[[1]][x:y])))},
@@ -211,23 +211,11 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
     
     blobInt<-(as_blob(flatten(mapply(blobIntFunctionCmp,PeakDTOrganize, SIMPLIFY = F))))
     
-  } else {
-    PeakDT<-mapply(function(x,y) {dt[x:y]},
-                   x= c(0, cumsum(NumPeaks[-length(Names)])) ,y= cumsum(NumPeaks), SIMPLIFY = F)
-    
-    PeakDTOrganize<- lapply(PeakDT, function(x){OrdPeakCmp(x)})
-    rm(PeakDT)
-    
-    blobMass<-(as_blob(flatten(mapply(blobMassFunctionCmp,PeakDTOrganize, SIMPLIFY = F))))
-    
-    blobInt<-(as_blob(flatten(mapply(blobIntFunctionCmp,PeakDTOrganize, SIMPLIFY = F))))
-    
-  }
+    PeakAnnotations<-lapply(PeakDTOrganize, function(x) {
+      paste(x$annotations,collapse=";")
+    })
+  } 
   
-  PeakAnnotations<-mapply(function(x,y) {as.list(dt)[[3]][x:y]},
-                           x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = F)
-   
-   PeakAnnotations<-  lapply(PeakAnnotations, function(x) { paste(x, collapse = ";")})
   # 
   # 
   # if(length(massOffset$name > 1)){

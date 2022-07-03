@@ -26,6 +26,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   
   # Reading file in 
   if(fileType != "Skyline") {
+   for (i in 1:length(Library$datapath))  {
     LibraryPath<-Library$datapath
     LibraryRead = vroom(LibraryPath, col_names = "Lib", delim = "\n",skip_empty_rows = FALSE)
    LibraryRead<-LibraryRead$Lib
@@ -44,7 +45,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   
   #get rid of library
  
-  }
+  
   # chunklist<- mapply(function(x,y) {
   #   LibraryRead[x:y]
   # }, x=NamesListX, y=NamesListY)
@@ -61,7 +62,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
                        cutoff=0, IonTypes=NA)
     },
     x=NamesListX, y=NamesListY, z=LibraryPath,
-    BPPARAM=SerialParam(),SIMPLIFY = FALSE) %>% bind_rows
+    BPPARAM=SnowParam(workers = parallel::detectCores()-8),SIMPLIFY = FALSE) %>% bind_rows
   }
 
   # rtFix <- as.numeric(resultsTable$RetentionTime)
@@ -77,11 +78,11 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
                      cutoff=cutoff,massOffset, IonTypes=IonTypes)
      },
      x=NamesListX, y=NamesListY, z=LibraryPath,
-     BPPARAM=SnowParam(workers = parallel::detectCores()-4),SIMPLIFY = FALSE) %>% bind_rows
+     BPPARAM=SnowParam(workers = parallel::detectCores()-8),SIMPLIFY = FALSE) %>% bind_rows
 
    }
-
-
+}
+}
 
   
   
@@ -131,7 +132,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
       blobFlags="",
       blobTopPeaks="",
       Version="",
-      CreationDate="",
+      CreationDate=NA,
       Curator="",
       CurationType="",
       PrecursorIonType="",
@@ -148,7 +149,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
       PartialEdits= NA)
     
     MaintenanceTable <- data.frame(
-      CreationDate =NA,
+      CreationDate = gsub("-"," ",Sys.Date()),
       NoofCompoundsModified=NA,
       Description=NA
     )
