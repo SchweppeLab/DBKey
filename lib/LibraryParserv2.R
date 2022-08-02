@@ -84,7 +84,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
       out<-str_split(out,"@")
       mods<-as.data.frame(do.call(rbind,out))
       mod<-mods[,1]
-      mod<-stri_replace_all_fixed(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
+      mod<-stri_replace_all_regex(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
       mod<-trimws(mod)
       pos<-str_split(mods[,2], "[[:alpha:]]",simplify = T)[,2]
       pos<-str_split(pos, "/", simplify = T)[,1]
@@ -152,13 +152,13 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   }
       
     
-  CollisionEnergy<-if(CollisionEnergy== "Read from file")
+if(CollisionEnergy== "Read from file")
     {
-      getCE(HeaderLists)
+  CollisionEnergy=getCE(HeaderLists)
     }
     else
     {
-      CollisionEnergy
+      CollisionEnergy=CollisionEnergy
     }
   
   Names<- HeaderLists[stri_detect_fixed(HeaderLists, "Name: ")]

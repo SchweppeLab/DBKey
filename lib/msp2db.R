@@ -30,13 +30,32 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
     LibraryPath<-Library$datapath
     LibraryRead = vroom(LibraryPath, col_names = "Lib", delim = "\n",skip_empty_rows = FALSE)
    LibraryRead<-LibraryRead$Lib
+   }
   chunksize<-min(length(LibraryRead),500000)
+  if(chunksize < 10000){
+    
+    NamesList<-which(stri_detect_fixed(LibraryRead,"Name: "))
+    if(fileType=="Prosit"){
+      source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
+      Lib<-LibraryRead
+      
+      resultsTable<- LibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
+                      CollisionEnergy=CollisionEnergy,
+                      Filter=Filter, TMTPro=FALSE, Source=fileType, topX=topX,
+                      cutoff=cutoff,massOffset, IonTypes=IonTypes)
+      
+
+    }
+    
+  }
+  if(chunksize > 10000) {
+    NamesX<-seq(chunksize,length(LibraryRead)-500,by=chunksize)
+    NamesY<-seq(chunksize+500,length(LibraryRead),by=chunksize)
+    NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)+(x-1))[1]}, x = NamesX, y = NamesY)
+    
   
-  NamesX<-seq(chunksize,length(LibraryRead)-500,by=chunksize)
-  NamesY<-seq(chunksize+500,length(LibraryRead),by=chunksize)
   
   #Get indices of entries between 500 lines at evenly spaced intervals 
-  NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)+(x-1))[1]}, x = NamesX, y = NamesY)
 #  NamesNamesList<-mapply(function(x, y) {LibraryRead[x:y][grepl("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)][[1]]}, x = NamesX, y = NamesY)
   
   #for function convienence
@@ -44,7 +63,8 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   NamesListY<-c(NamesList-1,length(LibraryRead))
   
   #get rid of library
- 
+  
+    
   
   # chunklist<- mapply(function(x,y) {
   #   LibraryRead[x:y]
@@ -82,8 +102,8 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
 
    }
 }
-}
 
+}
   
   
  if(fileType!="Skyline"){
