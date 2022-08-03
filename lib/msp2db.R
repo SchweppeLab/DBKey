@@ -42,7 +42,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
       resultsTable<- LibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
                       CollisionEnergy=CollisionEnergy,
                       Filter=Filter, TMTPro=FALSE, Source=fileType, topX=topX,
-                      cutoff=cutoff,massOffset, IonTypes=IonTypes)
+                      cutoff=cutoff,massOffset=massOffset, IonTypes=IonTypes)
       
 
     }

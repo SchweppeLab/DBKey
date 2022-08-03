@@ -244,24 +244,33 @@ rm(HeaderLists)
   # }
   # 
 
-  # if(length(massOffset$name > 1)){
-  # seqCharge <- data.frame(tstrsplit(Names, "/"))
-  # seqCharge$mZ <- PrecursorMasses
-  # names(seqCharge) <- c("Sequence", "charge", "mZ")
-  # joined <-dplyr::left_join(seqCharge, read.csv(massOffset$datapath),by = "Sequence")
-  # joined$mZ[!is.na(joined$massOffset )] <- as.numeric(joined$mZ[!is.na(joined$massOffset )])+
-  #   (joined$massOffset[!is.na(joined$massOffset )])/as.numeric(joined$charge[!is.na(joined$massOffset )])
-  # 
-  # PrecursorMasses <- joined$mZ
-  # joined$massOffsetTag<- ""
-  # joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("MassOffset: ",joined$massOffset[!is.na(joined$massOffset)])
+    if(length(massOffset) != 0){
+   seqCharge <- data.frame(tstrsplit(Names, "/"))
+   seqCharge$mZ <- PrecursorMasses
+   names(seqCharge) <- c("Sequence", "charge", "mZ")
+   joined <-dplyr::left_join(seqCharge, read.csv(massOffset$datapath),by = "Sequence")
+   joined$mZ[!is.na(joined$massOffset )] <- as.numeric(joined$mZ[!is.na(joined$massOffset )])+
+     (joined$massOffset[!is.na(joined$massOffset )])/as.numeric(joined$charge[!is.na(joined$massOffset )])
+   
+   PrecursorMasses <- joined$mZ
+   joined$massOffsetTag<- ""
+   joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("MassOffset: ",joined$massOffset[!is.na(joined$massOffset)])
+    Tags<-paste0(joined$massOffsetTag," mods:",Modsoutput," ", "ions:", PeakAnnotations )
+    }
+  else {
+    Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)
+    
+}
+   #joined$massOffsetTag<- ""
+   #joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("MassOffset: ",joined$massOffset[!is.na(joined$massOffset)])
   # Tags<-paste0(joined$massOffsetTag," mods:",ModString," ", "ions:", PeakAnnotations )
   # 
   # 
   # } else {
    # Tags<-paste0("mods:",ModString," ", "ions:", PeakAnnotations)
-    Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)
-  #}
+    
+  #Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)
+  
      parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
                              PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,
                              CollisionEnergy=CollisionEnergy,
