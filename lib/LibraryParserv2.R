@@ -254,7 +254,7 @@ rm(HeaderLists)
    
    #PrecursorMasses <- joined$mZ
    joined$massOffsetTag<- ""
-   joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("MassOffset: ",joined$massOffset[!is.na(joined$massOffset)])
+   joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("massOffset: ",joined$massOffset[!is.na(joined$massOffset)])
     Tags<-paste0(joined$massOffsetTag," mods:",Modsoutput," ", "ions:", PeakAnnotations )
     }
   else {
