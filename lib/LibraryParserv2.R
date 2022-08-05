@@ -9,7 +9,10 @@ library(compiler)
 OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
   
   dt<-x[which(x$int >0 ),]
-  
+  if(!is.null(IonTypes)) {
+    dt<-dt[(substr(dt$annotations,1,1) %in% IonTypes)]
+    
+  }
   if(topX < length(dt$masses)) {
     peakNum <- min(topX, length(dt$masses))
     dt$rank<- frank(dt$int)
@@ -20,10 +23,7 @@ OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
     maxPeak<-max(dt$int)
     dt<-dt[(dt$int/maxPeak)*100>cutoff,]
   }
-  if(!is.null(IonTypes)) {
-    dt<-dt[!(substr(dt$annotations,1,1) %in% IonTypes)]
-    
-  }
+
   
   dt<-setkey(dt, masses)
   return(dt)

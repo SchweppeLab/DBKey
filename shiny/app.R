@@ -53,6 +53,7 @@ body <- dashboardBody(
                 choiceNames = NULL,
                 choiceValues = NULL
               )),
+              textOutput("txt"),
               hidden(numericInput("topX", "Top N Peaks only", 150)),
               hidden(numericInput("cutoff", "% intensity cutoff", 0)),
               downloadButton(label = "Generate and Download .db", "downloadData"),
@@ -109,6 +110,9 @@ server <- function(input, output) {
                            Filter=Filter, DBoutput=x, topX=top, cutoff=cutoff, massOffset=massOff, IonTypes=IonTypes)
    
     } )
+  output$txt <-  renderText({
+    input$IonTypes
+  })
     
 }
 
