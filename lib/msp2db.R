@@ -94,7 +94,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
        Lib<-fread(z, skip=x-1, nrows=(y-x),strip.white = TRUE,header = FALSE, sep= "\n")
        LibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
                      CollisionEnergy=CollisionEnergy,
-                     Filter=Filter, TMTPro=FALSE, Source=fileType, topX=topX,
+                     Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
                      cutoff=cutoff,massOffset, IonTypes=IonTypes)
      },
      x=NamesListX, y=NamesListY, z=LibraryPath,

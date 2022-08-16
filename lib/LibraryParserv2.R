@@ -54,7 +54,7 @@ blobIntFunctionCmp<- cmpfun(blobIntFunction)
 
 
 LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, 
-                          Filter=FALSE, TMTPro=FALSE, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
+                          Filter=FALSE, TMTPro=TMTPro, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
 
   nameindexes<-c(which(stri_detect_fixed(Library,"Name: ")))
   headerLength<- which(stri_detect_regex(Library[1:100],"(?i)peaks:"))[1]-nameindexes[1]
@@ -198,7 +198,7 @@ if(CollisionEnergy== "Read from file")
     PrecursorMasses<- mapply(function(x,y,z) { 
       MonoisotopicMass(ConvertPeptide(x), charge = y) + ((229.162932 *z)/y)}, 
       x = sequence, y = Charge, z=kCount)
-  } else if (TMTPro == "None"){
+  } else {
     PrecursorMasses<- mapply(function(x,y,z) { 
       MonoisotopicMass(ConvertPeptide(x), charge = y) }, 
       x = sequence, y = Charge, z=kCount)
