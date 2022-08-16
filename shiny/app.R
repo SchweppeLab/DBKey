@@ -39,7 +39,7 @@ body <- dashboardBody(
               selectInput("FragInput", "Fragmentation", c("Read From file"= '', "HCD", "CID")),
               textInput("CeInput", "Normalized Collision Energy (NCE)","Read from file", placeholder =  "Read from file" ),
               selectInput("MassAnalyzerInput", "Mass Analyzer", c("FT", "IT")),
-              selectInput("TMTInput", "Label", c("None", "TMT", "TMTPro")),
+              selectInput("TMTInput", "Recalculate Precursor Mz?", c("No", "Label-free", "TMT", "TMTPro")),
               fileInput("massOffset", "Mass Offset: ", accept=c(".csv")),
               div(switchInput("Filter", label="Filter", value = FALSE),
                   style = "font-size: 20px !important; text-align:left;"

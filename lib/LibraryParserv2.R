@@ -312,7 +312,7 @@ if(CollisionEnergy== "Read from file")
     PrecursorMasses<- mapply(function(x,y,z) { 
       MonoisotopicMass(ConvertPeptide(x), charge = y) + ((229.162932 *z)/y)}, 
       x = sequence, y = Charge, z=kCount)
-  } else {
+  } else if (TMTPro == "Label-free") {
     PrecursorMasses<- mapply(function(x,y,z) { 
       MonoisotopicMass(ConvertPeptide(x), charge = y) }, 
       x = sequence, y = Charge, z=kCount)
