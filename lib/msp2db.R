@@ -11,7 +11,7 @@ library(data.table)
 
 # main function of shiny app
 DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
-                     Filter, DBoutput, topX, cutoff, massOffset, IonTypes) {
+                     Filter, DBoutput, topX, cutoff, TMTPro, massOffset, IonTypes) {
 # Get file type from input file
   fileType<- (Library$name[1])
   if(grepl("msp", fileType)) {
@@ -41,7 +41,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
       
       resultsTable<- LibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
                       CollisionEnergy=CollisionEnergy,
-                      Filter=Filter, TMTPro=FALSE, Source=fileType, topX=topX,
+                      Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
                       cutoff=cutoff,massOffset=massOffset, IonTypes=IonTypes)
       
 

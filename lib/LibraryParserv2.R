@@ -6,6 +6,8 @@ suppressPackageStartupMessages(library(purrr))
 library(blob)
 library(readr)
 library(compiler)
+library(OrgMassSpecR)
+
 OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
   
   dt<-x[which(x$int >0 ),]
@@ -185,7 +187,24 @@ if(CollisionEnergy== "Read from file")
     HeaderLists[stri_detect_fixed(HeaderLists, "PrecursorMZ:")]
   }
   PrecursorMasses <- gsub("[[:alpha:]]|:", "", PrecursorMasses)
+  sequence<- gsub('.{2}$', '',Names)
+  kCount <- str_count(sequence, pattern = "K")+1
   
+  if(TMTPro == "TMTPro") {
+    PrecursorMasses<- mapply(function(x,y,z) { 
+      MonoisotopicMass(ConvertPeptide(x), charge = y) + ((304.207146*z)/y)}, 
+      x = sequence, y = Charge, z=kCount)
+  } else if (TMTPro == "TMT") {
+    PrecursorMasses<- mapply(function(x,y,z) { 
+      MonoisotopicMass(ConvertPeptide(x), charge = y) + ((229.162932 *z)/y)}, 
+      x = sequence, y = Charge, z=kCount)
+  } else if (TMTPro == "None"){
+    PrecursorMasses<- mapply(function(x,y,z) { 
+      MonoisotopicMass(ConvertPeptide(x), charge = y) }, 
+      x = sequence, y = Charge, z=kCount)
+    
+  }
+
   #   PrecursorMasses<- if(TMTPro == TRUERUE) {
   #   as.numeric(PrecursorMasses)+304.207146/Charge
   # } else  {PrecursorMasses}
@@ -254,7 +273,7 @@ rm(HeaderLists)
    
    #PrecursorMasses <- joined$mZ
    joined$massOffsetTag<- ""
-   joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("massOffset: ",joined$massOffset[!is.na(joined$massOffset)])
+   joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("massOffset:",joined$massOffset[!is.na(joined$massOffset)])
     Tags<-paste0(joined$massOffsetTag," mods:",Modsoutput," ", "ions:", PeakAnnotations )
     }
   else {
