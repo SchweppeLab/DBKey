@@ -224,8 +224,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   {
     rtItems<-sapply(AltComments, function(x) {  return(x[which(stri_detect_regex(x,"RetentionTime|iRT"))])    })
     RetentionTime <- str_split(rtItems, "=", simplify = T)[,2]
-  }
-  else
+  } else
   {
       RetentionTime <- ""
   }
@@ -403,11 +402,13 @@ rm(HeaderLists)
    # Tags<-paste0("mods:",ModString," ", "ions:", PeakAnnotations)
     
   #Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)
+
   
      parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
+                                CompoundClass = "Yeast",
                              PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,
                              CollisionEnergy=CollisionEnergy,
-                             RetentionTime=RetentionTime)
+                             iRT=RetentionTime, seq=sequence, z= Charge)
 
   return(parallelTable)
   

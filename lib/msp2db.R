@@ -103,8 +103,37 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
    }
 }
 
-}
+  }
+  iRTtable<-data.frame(Seq = resultsTable$seq, Z = resultsTable$z, iRT = resultsTable$iRT)
+  COREresults<- read.csv("C:\\Users\\Chris McGann\\Downloads\\cmcgann_1663813948.csv")
+  COREresults <- COREresults %>% dplyr::select(Trimmed.Peptide,z,Time)
+  COREresults <- COREresults[!grepl("*", COREresults$Trimmed.Peptide, fixed = T),]
+  names(COREresults)[1] <- "Seq"
+  names(COREresults)[2] <- "Z"
   
+  join<- dplyr::inner_join(COREresults, iRTtable, by=c("Seq", "Z"))
+  join$iRT <- as.numeric(join$iRT)
+  fit<-lm(Time ~ iRT, data = join)
+  resultsTable$RetentionTime<-predict(fit, newdata=data.frame(iRT=as.numeric(resultsTable$iRT)))
+  
+  DecoyTable<-resultsTable
+  DecoyTable$CompoundClass<-"DECOY"
+
+
+  randomtwo<- sample(resultsTable$PrecursorMasses [resultsTable$z == 2], 
+                     length(resultsTable$PrecursorMasses[resultsTable$z == 2]), replace = F)
+  
+  randomthree<- sample(resultsTable$PrecursorMasses[resultsTable$z == 3], 
+                       length(resultsTable$PrecursorMasses[resultsTable$z == 3]), replace = F)
+  
+   randomfour<- sample(resultsTable$PrecursorMasses[resultsTable$z== 4],
+                       length(resultsTable$PrecursorMasses[resultsTable$z == 4]), replace = F)
+   
+  DecoyTable$PrecursorMass[DecoyTable$z==2] <- randomtwo
+  DecoyTable$PrecursorMass[DecoyTable$z==3] <- randomthree
+  DecoyTable$PrecursorMass[DecoyTable$z==4] <- randomfour
+
+  resultsTable<-bind_rows(resultsTable, DecoyTable)
   
  if(fileType!="Skyline"){
  #Builds tables
