@@ -41,6 +41,8 @@ body <- dashboardBody(
               selectInput("MassAnalyzerInput", "Mass Analyzer", c("FT", "IT")),
               selectInput("TMTInput", "Recalculate Precursor Mz?", c("No", "Label-free", "TMT", "TMTPro")),
               fileInput("massOffset", "Mass Offset: ", accept=c(".csv")),
+              fileInput("RTinput", "RT Align File"),
+              switchInput("Decoy", label="Append Decoys", value = FALSE),
               div(switchInput("Filter", label="Filter", value = FALSE),
                   style = "font-size: 20px !important; text-align:left;"
               ),
@@ -82,9 +84,11 @@ server <- function(input, output) {
   CollisionEnergy = reactive(input$CeInput)
   TMTPro = reactive(input$TMTInput)
   Filter = reactive(input$Filter)
+  Decoy = reactive(input$Decoy)
   DBoutput = reactive(input$DbInput)
   topX = reactive(input$topX)
   cutoff = reactive(input$cutoff)  
+  rtalign = reactive(input$RTinput)
   output$text <- renderText({ Library()$name }) 
   IonTypes=reactive(input$IonTypes)
   observe({

@@ -1,8 +1,8 @@
 
-library(stringr)                                                                                                                                                                                          
-library(stringi)                                                                                                                                                                                          
-library(data.table,warn.conflicts = FALSE )                                                                                                                                                                                       
-suppressPackageStartupMessages(library(purrr))                                                                                                                                                                                            
+library(stringr)                                  
+library(stringi)
+library(data.table,warn.conflicts = FALSE )  
+suppressPackageStartupMessages(library(purrr))  
 library(blob)
 library(readr)
 library(compiler)
@@ -36,16 +36,10 @@ OrderPeaks<- function(x) {
   return(dt)
 }
 
-blobMassFunction<- function(x){
-  as_blob(packBits(numToBits(unlist(x[,1]))))}
-blobIntFunction<- function(x){
-  as_blob(packBits(numToBits(unlist(x[,2]))))}
 
 
 OrgPeakCmp<-cmpfun(OrganizePeaks)
 OrdPeakCmp<-cmpfun(OrderPeaks)
-blobMassFunctionCmp<- cmpfun(blobMassFunction)
-blobIntFunctionCmp<- cmpfun(blobIntFunction)
 
 
 ConvertPeptide <- function(sequence, output = "elements", IAA = TRUE) {
@@ -170,6 +164,9 @@ MonoisotopicMass <- function(formula = list(), isotopes = list(), charge = 0) {
 LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, 
                           Filter=FALSE, TMTPro=TMTPro, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
 
+  # firstName<-grep("Name", Library[1:100])[1]
+  # Library<-Library[firstName:length(Library)]
+  
   nameindexes<-c(which(stri_detect_fixed(Library,"Name: ")))
   headerLength<- which(stri_detect_regex(Library[1:100],"(?i)peaks:"))[1]-nameindexes[1]
   peakindexes<-nameindexes+headerLength
@@ -190,7 +187,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   
   unimodTable <- read.csv("~/Repos/MSPtoDB/unimod_custom.csv")
   unimodTable$mod <- paste("\\b",unimodTable$mod,"\\b", sep="") #Add word boundaries to treat as regex for exact match
-
+  modforprecursor<-list()
   modparser <- function(x) { #Function takes in a single full ModString
     remove_modstring<-str_split(x,"//",simplify = T)[,2] #Remove the peptide sequence and "ModString=" content
     remove_modstring<-str_split(remove_modstring,"/",simplify = T)[,1] #remove the terminal charge "/2"
@@ -202,6 +199,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
       mod<-mods[,1]
       mod<-stri_replace_all_regex(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
       mod<-trimws(mod)
+      modforprecursor<<-append(modforprecursor, list(mod))
       pos<-str_split(mods[,2], "[[:alpha:]]",simplify = T)[,2]
       pos<-str_split(pos, "/", simplify = T)[,1]
       pos[pos<=0 & pos!=""] <- 0
@@ -218,7 +216,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   Modsoutput<-sapply(Mods,modparser)
   Modsoutput<-str_replace(Modsoutput," ","")
 
-  has_rt<-sum(sapply(AltComments, function(x) {  return(stri_detect_regex(x,"RetentionTime|iRT"))    })) # Check to see if iRT or RetentionTime is present.
+  has_rt<-sum(sapply(AltComments, function(x) {  return(stri_detect_regex(x,"RetentionTime|iRT"))})) # Check to see if iRT or RetentionTime is present.
 
   if(has_rt>=1)
   {
@@ -250,8 +248,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
     FragmentationMode=FragmentationMode
   }
     
-  rtItems<-sapply(AltComments, function(x) {  return(x[which(stri_detect_regex(x,"RetentionTime|iRT"))])    })
-    
+
   getCE<- function(x){
     
     CE<-x[stri_detect_fixed(x, "Collision")]
@@ -281,54 +278,19 @@ if(CollisionEnergy== "Read from file")
   
   
   NumPeaks<-(c(nameindexes[-1], length(Library)+1) - peakindexes)-1
-
-  #PeptideSequence <- gsub('.{2}$', '', Names, perl = TRUE)
-  
-
   Charge<-as.numeric(str_sub(Names,-1 ))
-  # LastAA<-str_sub(Names,-3,-3 )
-  # isK <- if(Source == "Prosit"){
-  #   LastAA=="K"
-  # } else {
-  #   LastAA=="]"
-  # }
-  # 
-
-  PrecursorMasses <- if(Source == "Prosit"){
-    HeaderLists[stri_detect_fixed(HeaderLists, "MW:")]
-  } else {
-    HeaderLists[stri_detect_fixed(HeaderLists, "PrecursorMZ:")]
-  }
-  PrecursorMasses <- gsub("[[:alpha:]]|:", "", PrecursorMasses)
   sequence<- gsub('.{2}$', '',Names)
-  kCount <- str_count(sequence, pattern = "K")+1
+    totalprecursormod<- lapply(modforprecursor, function(x) {sum(as.numeric(x))})
+  totalprecursormod[is.na(totalprecursormod)] <- 0
+  PrecursorMasses<- mapply(function(x,y,z) { 
+    MonoisotopicMass(ConvertPeptide(x), charge = y) + (z/y)}, 
+    x = sequence, y = Charge, z=totalprecursormod)
   
-  if(TMTPro == "TMTPro") {
-    PrecursorMasses<- mapply(function(x,y,z) { 
-      MonoisotopicMass(ConvertPeptide(x), charge = y) + ((304.207146*z)/y)}, 
-      x = sequence, y = Charge, z=kCount)
-  } else if (TMTPro == "TMT") {
-    PrecursorMasses<- mapply(function(x,y,z) { 
-      MonoisotopicMass(ConvertPeptide(x), charge = y) + ((229.162932 *z)/y)}, 
-      x = sequence, y = Charge, z=kCount)
-  } else if (TMTPro == "Label-free") {
-    PrecursorMasses<- mapply(function(x,y,z) { 
-      MonoisotopicMass(ConvertPeptide(x), charge = y) }, 
-      x = sequence, y = Charge, z=kCount)
-    
-  }
 
-  #   PrecursorMasses<- if(TMTPro == TRUERUE) {
-  #   as.numeric(PrecursorMasses)+304.207146/Charge
-  # } else  {PrecursorMasses}
-  # 
-  # PrecursorMasses[isK] <- if(TMTPro == TRUERUE) {
-  #   PrecursorMasses[isK]+304.207146/Charge[isK]
-  # } else {  PrecursorMasses[isK]}
-  
+
 rm(HeaderLists)
   
-  PeakLists1<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)),SIMPLIFY = TRUE)
+  #PeakLists1<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)),SIMPLIFY = TRUE)
   PeakLists<-mapply(function(x) {str_split(PeakLists[[x]], "\\t",simplify = TRUE)}, x = seq(from=1,to=length(PeakLists), by=1))
   PeakLists <- do.call("rbind", PeakLists)
 
@@ -337,44 +299,30 @@ rm(HeaderLists)
   dt$masses<-as.numeric(dt$masses)
   dt$int<-as.numeric(dt$int)
   
-   UnSorted<- any(unlist(mapply(function(x,y) {is.unsorted(dt[[1]][x:y])}, 
-          x= c(0, cumsum(NumPeaks[1:4]))+1 ,y= cumsum(NumPeaks[1:5]), SIMPLIFY = FALSE)))
-  
   rm(PeakLists)
   
   dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
   dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
   
 
-    {
+    
     PeakDT<-mapply(function(x,y) {dt[x:y]},
           x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
 
     PeakDTOrganize<- lapply(PeakDT, function(x){OrgPeakCmp(x,topX,cutoff,IonTypes)})
     rm(PeakDT)
 
-    blobMass<-(as_blob(flatten(mapply(blobMassFunctionCmp,PeakDTOrganize, SIMPLIFY = FALSE))))
 
-    blobInt<-(as_blob(flatten(mapply(blobIntFunctionCmp,PeakDTOrganize, SIMPLIFY = FALSE))))
+    blobMass<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,1]))))})
+    blobInt<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,2]))))})
     
     PeakAnnotations<-lapply(PeakDTOrganize, function(x) {
       paste(x$annotations,collapse=";")
     })
     
     
-  } #else {
-  #   PeakDT<-mapply(function(x,y) {dt[x:y]},
-  #                  x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
-  # 
-  #   PeakDTOrganize<- lapply(PeakDT, function(x){OrdPeakCmp(x)})
-  #   rm(PeakDT)
-  # 
-  #   blobMass<-(as_blob(flatten(mapply(blobMassFunctionCmp,PeakDTOrganize, SIMPLIFY = FALSE))))
-  # 
-  #   blobInt<-(as_blob(flatten(mapply(blobIntFunctionCmp,PeakDTOrganize, SIMPLIFY = FALSE))))
-  # 
-  # }
-  # 
+   
+   
 
     if(length(massOffset) != 0){
    seqCharge <- data.frame(tstrsplit(Names, "/"))
@@ -384,7 +332,6 @@ rm(HeaderLists)
    joined$mZ[!is.na(joined$massOffset )] <- as.numeric(joined$mZ[!is.na(joined$massOffset )])+
      (joined$massOffset[!is.na(joined$massOffset )])/as.numeric(joined$charge[!is.na(joined$massOffset )])
    
-   #PrecursorMasses <- joined$mZ
    joined$massOffsetTag<- ""
    joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("massOffset:",joined$massOffset[!is.na(joined$massOffset)])
     Tags<-paste0(joined$massOffsetTag," mods:",Modsoutput," ", "ions:", PeakAnnotations )
@@ -393,15 +340,6 @@ rm(HeaderLists)
     Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)
     
 }
-   #joined$massOffsetTag<- ""
-   #joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("MassOffset: ",joined$massOffset[!is.na(joined$massOffset)])
-  # Tags<-paste0(joined$massOffsetTag," mods:",ModString," ", "ions:", PeakAnnotations )
-  # 
-  # 
-  # } else {
-   # Tags<-paste0("mods:",ModString," ", "ions:", PeakAnnotations)
-    
-  #Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)
 
   
      parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 

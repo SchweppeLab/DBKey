@@ -9,6 +9,19 @@ library(compiler)
 library(vroom)
 library(data.table)
 
+
+#testing
+LibraryPath<-"E:\\RTLS\\ThermoOctober\\tmtphos_consensus.sptxt"
+FragmentationMode<- "CID"
+MassAnalyzer <- "IT"
+CollisionEnergy <- "35"
+Filter <- FALSE
+topX<-150
+cutoff <- 0
+massOffset <- NULL
+IonTypes <- NULL
+Source<-"Prosit"
+
 # main function of shiny app
 DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
                      Filter, DBoutput, topX, cutoff, TMTPro, massOffset, IonTypes) {
@@ -27,12 +40,13 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   # Reading file in 
   if(fileType != "Skyline") {
    for (i in 1:length(Library$datapath))  {
-    LibraryPath<-Library$datapath
+    # LibraryPath<-Library$datapath commented out for manual testing
     LibraryRead = vroom(LibraryPath, col_names = "Lib", delim = "\n",skip_empty_rows = FALSE)
    LibraryRead<-LibraryRead$Lib
    }
-  chunksize<-min(length(LibraryRead),500000)
-  if(chunksize < 10000){
+  
+    chunksize<-min(length(LibraryRead),500000)
+  if(chunksize < 500000){
     
     NamesList<-which(stri_detect_fixed(LibraryRead,"Name: "))
     if(fileType=="Prosit"){
@@ -48,7 +62,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
     }
     
   }
-  if(chunksize > 10000) {
+  if(chunksize > 500000) {
     NamesX<-seq(chunksize,length(LibraryRead)-500,by=chunksize)
     NamesY<-seq(chunksize+500,length(LibraryRead),by=chunksize)
     NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)+(x-1))[1]}, x = NamesX, y = NamesY)
@@ -56,38 +70,27 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
   
   
   #Get indices of entries between 500 lines at evenly spaced intervals 
-#  NamesNamesList<-mapply(function(x, y) {LibraryRead[x:y][grepl("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)][[1]]}, x = NamesX, y = NamesY)
-  
-  #for function convienence
   NamesListX<-c(0,NamesList)
   NamesListY<-c(NamesList-1,length(LibraryRead))
   
   #get rid of library
-  
-    
-  
-  # chunklist<- mapply(function(x,y) {
-  #   LibraryRead[x:y]
-  # }, x=NamesListX, y=NamesListY)
    rm(LibraryRead)
   
   if(fileType=="SpectraST"){
     resultsTable<-bpmapply( function(x,y,z) {
       source("~/Repos/MSPtoDB/lib/SpXLibraryParser.R")
-      Lib<-""
+      #Lib<-""
       Lib<-fread(z,skip = x-1, nrows = (y-x), blank.lines.skip=FALSE, sep = "\n",  header = FALSE )
-      SpXLibraryParser(Library=Lib$V1, FragmentationMode="CID", MassAnalyzer="IT", 
-                       CollisionEnergy="35", 
-                       Filter=FALSE, TMTPro=FALSE, Source="SpectraST", topX=150, 
-                       cutoff=0, IonTypes=NA)
+      SpXLibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
+                       CollisionEnergy=CollisionEnergy, 
+                       Filter=Filter, TMTPro=FALSE, Source=fileType, topX=topX, 
+                       cutoff=cutoff, massOffset = massOffset,  IonTypes=IonTypes)
     },
     x=NamesListX, y=NamesListY, z=LibraryPath,
-    BPPARAM=SnowParam(workers = parallel::detectCores()-8),SIMPLIFY = FALSE) %>% bind_rows
+    BPPARAM=SnowParam(workers = max(2,parallel::detectCores()-6)),SIMPLIFY = FALSE) %>% bind_rows
   }
 
-  # rtFix <- as.numeric(resultsTable$RetentionTime)
-  # rtFix<- (rtFix/max(rtFix)*120)
-  # resultsTable$RetentionTime <- as.character(rtFix)
+
    if(fileType=="Prosit"){
      resultsTable<-bpmapply(function(x,y,z) {
        source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
@@ -98,43 +101,30 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
                      cutoff=cutoff,massOffset, IonTypes=IonTypes)
      },
      x=NamesListX, y=NamesListY, z=LibraryPath,
-     BPPARAM=SnowParam(workers = parallel::detectCores()-8),SIMPLIFY = FALSE) %>% bind_rows
+     BPPARAM=SnowParam(workers = max(2,parallel::detectCores()-8)),SIMPLIFY = FALSE) %>% bind_rows
 
    }
+   ### COPY FOR TESTING
+   if(fileType=="Prosit"){
+     resultsTable<-bpmapply(function(x,y,z) {
+       source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
+       Lib<-fread(z, skip=x-1, nrows=(y-x),strip.white = TRUE,header = FALSE, sep= "\n")
+       LibraryParser(Library=Lib$V1, FragmentationMode="CID", MassAnalyzer="IT",
+                     CollisionEnergy="35",
+                     Filter=TRUE, TMTPro="TMTPro", Source="Prosit", topX=150,
+                     cutoff=0,massOffset=NULL, IonTypes=NULL)
+     },
+     x=NamesListX, y=NamesListY, z=LibraryPath,
+     BPPARAM=SnowParam(workers = max(2,parallel::detectCores()-4)),SIMPLIFY = FALSE) %>% bind_rows
+     
+   }
+   Lib<-fread(LibraryPath, skip=NamesListX[1]-1, nrows=(NamesListY[1]-NamesListX[1]),strip.white = TRUE,header = FALSE, sep= "\n")
+   
+   
 }
 
   }
-  iRTtable<-data.frame(Seq = resultsTable$seq, Z = resultsTable$z, iRT = resultsTable$iRT)
-  COREresults<- read.csv("C:\\Users\\Chris McGann\\Downloads\\cmcgann_1663813948.csv")
-  COREresults <- COREresults %>% dplyr::select(Trimmed.Peptide,z,Time)
-  COREresults <- COREresults[!grepl("*", COREresults$Trimmed.Peptide, fixed = T),]
-  names(COREresults)[1] <- "Seq"
-  names(COREresults)[2] <- "Z"
-  
-  join<- dplyr::inner_join(COREresults, iRTtable, by=c("Seq", "Z"))
-  join$iRT <- as.numeric(join$iRT)
-  fit<-lm(Time ~ iRT, data = join)
-  resultsTable$RetentionTime<-predict(fit, newdata=data.frame(iRT=as.numeric(resultsTable$iRT)))
-  
-  DecoyTable<-resultsTable
-  DecoyTable$CompoundClass<-"DECOY"
 
-
-  randomtwo<- sample(resultsTable$PrecursorMasses [resultsTable$z == 2], 
-                     length(resultsTable$PrecursorMasses[resultsTable$z == 2]), replace = F)
-  
-  randomthree<- sample(resultsTable$PrecursorMasses[resultsTable$z == 3], 
-                       length(resultsTable$PrecursorMasses[resultsTable$z == 3]), replace = F)
-  
-   randomfour<- sample(resultsTable$PrecursorMasses[resultsTable$z== 4],
-                       length(resultsTable$PrecursorMasses[resultsTable$z == 4]), replace = F)
-   
-  DecoyTable$PrecursorMass[DecoyTable$z==2] <- randomtwo
-  DecoyTable$PrecursorMass[DecoyTable$z==3] <- randomthree
-  DecoyTable$PrecursorMass[DecoyTable$z==4] <- randomfour
-
-  resultsTable<-bind_rows(resultsTable, DecoyTable)
-  
  if(fileType!="Skyline"){
  #Builds tables
     MasterCompoundTable <- data.table(
@@ -161,7 +151,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
       CompoundId = seq(1, length(resultsTable$Names), by=1),
       mzCloudURL = "",
       ScanFilter = "",
-      RetentionTime = resultsTable$RetentionTime,
+      RetentionTime = resultsTable$iRT,
       ScanNumber = 0,#
       PrecursorMass = resultsTable$PrecursorMasses,
       NeutralMass= 0,
@@ -222,30 +212,4 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
     
   }
 }
-
-# outList<-NULL
-#  for(i in 1:length(Library$name))
-#  {
-#    outList[i] <- vroom(Library$datapath[i], col_names = "Lib", delim = "\n")
-#  }
-#  LibraryRead<-unlist(outList, recursive = FALSE)
-# 
-#     
-# if(length(Library$name==1)){
-#   LibraryPath = Library$datapath
-# } else {
-#    dir.create("Temp")
-#    fwrite(LibraryRead, "CombinedLibTemp.msp")
-#    LibraryPath = "Temp/CombinedLibTemp.msp"
-#  }
-#   
-#  
-#   fileType<- substring(Library$name, nchar(Library$name)-3)
-# if(fileType == "msp") {
-#   Source <- "Prosit"
-# } else if (fileType == "ptxt") {
-#   Source <- "SpectraST"
-# } else if( fileType == "blib") {
-#   Source <- "Skyline"
-# }
 
