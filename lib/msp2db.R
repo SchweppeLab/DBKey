@@ -83,7 +83,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
       Lib<-fread(z,skip = x-1, nrows = (y-x), blank.lines.skip=FALSE, sep = "\n",  header = FALSE )
       SpXLibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer, 
                        CollisionEnergy=CollisionEnergy, 
-                       Filter=Filter, TMTPro=FALSE, Source=fileType, topX=topX, 
+                       Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX, 
                        cutoff=cutoff, massOffset = massOffset,  IonTypes=IonTypes)
     },
     x=NamesListX, y=NamesListY, z=LibraryPath,
@@ -129,7 +129,7 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
  #Builds tables
     MasterCompoundTable <- data.table(
       CompoundId = seq(1, length(resultsTable$Names), by=1), 
-      Formula = "", 
+      Formula = unlist(resultsTable$Formula), 
       Name = unlist(resultsTable$Names),
       Synonyms = "",
       Tag = unlist(resultsTable$Tags),

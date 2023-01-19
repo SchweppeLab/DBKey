@@ -5,7 +5,7 @@ suppressPackageStartupMessages(library(purrr))
 library(blob)
 library(readr)
 library(compiler)
-OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
+OrganizePeaks<- function(x,precursor,z,topX,cutoff,IonTypes,TMTPro) {
   
   dt<-x[which(x$int >0 ),]
   if(!is.null(IonTypes)) {
@@ -21,6 +21,10 @@ OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
   if(cutoff>0) {
     maxPeak<-max(dt$int)
     dt<-dt[(dt$int/maxPeak)*100>cutoff,]
+  }
+  if(TMTPro){
+    dt<-dt[dt$masses>=200,]
+    dt<- dt[(dt$masses<=(precursor*z-150))|(dt$masses>=(precursor*z-175))|dt$annotations!="",]
   }
   
   
@@ -164,7 +168,7 @@ MonoisotopicMass <- function(formula = list(), isotopes = list(), charge = 0) {
 
 
 SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, 
-                             Filter=TRUE, TMTPro=FALSE, Source, topX=0, cutoff=0,massOffset=NULL, IonTypes=NULL) {
+                             Filter=TRUE, TMTPro, Source, topX=0, cutoff=0,massOffset=NULL, IonTypes=NULL) {
   
   
   firstName<-grep("Name", Library[1:100])[1]
@@ -277,7 +281,6 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   
   rm(HeaderLists)
   
-  #PeakLists1<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)),SIMPLIFY = TRUE)
   PeakLists<-mapply(function(x) {str_split(PeakLists[[x]], "\\t",simplify = TRUE)}, x = seq(from=1,to=length(PeakLists), by=1))
   PeakLists <- do.call("rbind", PeakLists)
   
@@ -297,8 +300,8 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   
   PeakDT<-mapply(function(x,y) {dt[x:y]},
                  x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
-  
-  PeakDTOrganize<- lapply(PeakDT, function(x){OrgPeakCmp(x,topX,cutoff,IonTypes)})
+
+  PeakDTOrganize<- lapply(seq(1,length(PeakDT), by=1), function(x){OrgPeakCmp(PeakDT[[x]], PrecursorMasses[x], Charge[x], topX,cutoff,IonTypes,TMTPro)})
   rm(PeakDT)
   
   
@@ -329,9 +332,12 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
     
   }
   
+  Names<-    gsub("[^[:alpha:]]", "", Names)
+  Names <- gsub("[[:lower:]]", "", Names)
+  Names<- paste0(Names, "/", Charge)
   
   parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
-                             CompoundClass = "Yeast",
+                             CompoundClass = "Yeast", Formula = Modsoutput, 
                              PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,
                              CollisionEnergy=CollisionEnergy,
                              iRT=RetentionTime, seq=sequence, z= Charge)

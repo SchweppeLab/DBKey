@@ -24,6 +24,7 @@ OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
     maxPeak<-max(dt$int)
     dt<-dt[(dt$int/maxPeak)*100>cutoff,]
   }
+  
 
   
   dt<-setkey(dt, masses)
@@ -343,7 +344,7 @@ rm(HeaderLists)
 
   
      parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
-                                CompoundClass = "Yeast",
+                                CompoundClass = "Yeast", Formula =Modsoutput,
                              PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,
                              CollisionEnergy=CollisionEnergy,
                              iRT=RetentionTime, seq=sequence, z= Charge)
