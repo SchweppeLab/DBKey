@@ -1,137 +1,145 @@
-##Adapted from specL packages https://github.com/fgcz/specL
-convert_blib <- function(x,y,z){
-  peakmZ<-(x)
-  peakIntensity<-(y)
-  numPeaks<-z
-  
-  mZ <- try(readBin(memDecompress(unlist(peakmZ),'g'), double(), numPeaks), TRUE)
-  
-  if (!is.numeric(mZ)||is_empty(mZ)){
-    mZ <- try(readBin(as.raw(unlist(peakmZ)), double(),numPeaks), FALSE)
+library(RSQLite)
+library(dplyr)
+library(data.table)
+OrganizePeaks<- function(x,topX,cutoff) {
+  dt<-data.table(x)
+  dt<-dt[which(dt$int >0 ),]
+
+  if(topX < length(dt$masses)) {
+    peakNum <- min(topX, length(dt$masses))
+    dt$rank<- frank(dt$int)
+    dt<-dt[dt$rank<=topX,]
+    dt[,rank:=NULL]
+  }
+  if(cutoff>0) {
+    maxPeak<-max(dt$int)
+    dt<-dt[(dt$int/maxPeak)*100>cutoff,]
   }
   
-  intensity <- try(readBin(memDecompress(unlist(peakIntensity),'g'), 
-                           numeric(), n=numPeaks, size = 4), TRUE)
-  
-  
-  if (!is.numeric(intensity) || length(intensity) != length(mZ)){
-    intensity <- try(readBin(as.raw(unlist(peakIntensity)), 
-                             numeric(), n=numPeaks, size = 4), FALSE)
-    
-  }  
-  
-  return(data.table(mZ=(as_blob(packBits(numToBits(mZ)))), int=(as_blob(packBits(numToBits(intensity))))))
+  dt<-setkey(dt, masses)
+  return(dt)
+}
+SkylineConvert<- function(x,CollisionEnergy,FragmentationMode,MassAnalyzer,topX,cutoff, Filter,massOffset, DBoutput) {
+
+
+blib<-dbConnect(SQLite(),x)
+mods<-dbReadTable(blib, "Modifications")
+modsOutput <- mods %>% group_by(RefSpectraID) %>% summarise(ModString=paste0(mass, "@", position,";",collapse = ""))
+RefSpectraPeaks<-dbReadTable(blib, "RefSpectraPeaks")
+allmz<-lapply(RefSpectraPeaks$peakMZ, function(x) {readBin(memDecompress(unlist(x),'g'), double(), 200)})
+allint<- lapply(RefSpectraPeaks$peakIntensity, function(x) {readBin(as.raw(unlist(x)),numeric(), n=200, size = 4)})
+mzinttable <- lapply(seq(1,length(allmz), by = 1), function(x) {bind_cols(masses=allmz[[x]], int=allint[[x]])})
+
+if(Filter) {
+mzinttable<-lapply(seq(1,length(allmz), by =1), function(x) {OrganizePeaks(mzinttable[[x]],topX,cutoff)})
 }
 
-converyBlibCmp<- cmpfun(convert_blib)
 
-SkylineConvert<- function(x, CollisionEnergy, Filter, FragmentationMode, MassAnalyzer, DBoutput, topX, cutoff, IonTypes) {
-  blib<-dbConnect(SQLite(), x)
-  RefSpectra<-dbReadTable(blib, "RefSpectra")
-  Modifications<-dbReadTable(blib, "Modifications")
-  RefSpectraPeaks<-dbReadTable(blib, "RefSpectraPeaks")
-  RefSpectraPeaks$numPeaks<-RefSpectra$numPeaks
-  RT<-dbReadTable(blib, "RetentionTimes")
-  
 
-  ##From specL package
-  SkylinePeaks<- mapply(function(x,y,z){converyBlibCmp(x,y,z)}, x=RefSpectraPeaks[,2],
-              y=RefSpectraPeaks[,3], RefSpectraPeaks[,4], SIMPLIFY = F)
-  SkylinePeaks <- do.call("rbind", SkylinePeaks)
- 
+SpectraTable<-dbReadTable(blib, "RefSpectra")
+
+allmzpacked<-lapply(mzinttable, function(x){(packBits(numToBits(unlist(x$masses))))})
+allintpacked<-lapply(mzinttable, function(x){(packBits(numToBits(unlist(x$int))))})
+
+
+
+
+if(length(massOffset) != 0){
+  seqCharge <- data.frame(Sequence=SpectraTable$peptideSeq, charge =SpectraTable$precursorCharge, mZ= SpectraTable$precursorMZ )
+
+  joined <-dplyr::left_join(seqCharge, read.csv(massOffset$datapath),by = "Sequence")
+  joined$mZ[!is.na(joined$massOffset )] <- as.numeric(joined$mZ[!is.na(joined$massOffset )])+
+    (joined$massOffset[!is.na(joined$massOffset )])/as.numeric(joined$charge[!is.na(joined$massOffset )])
   
-  
-  Tags<-data.table(rep("mods:", length(RefSpectraPeaks$numPeaks)))
-  addMods<-function(x) {
-    ID<-x[[2]]
-    pos<-x[3]
-    mass<-x[4]
-    y<-Tags[ID]
-    Tags[ID]<<-paste0(y, mass, "@", pos," ")
-  }
-  for(i in 1:length(Modifications$id)) {
-    addMods(Modifications[i,])
-  }
-  
-  MasterCompoundTable <- data.table(
-    CompoundId =seq(1, length(RefSpectra$id), by=1), 
-    Formula = "", 
-    Name = paste0(RefSpectra$peptideSeq,"/", RefSpectra$precursorCharge),
-    Synonyms = "",
-    Tag =(Tags$V1),
-    Sequence = RefSpectra$peptideSeq,
-    CASId = "",
-    ChemSpiderId= "",
-    HMDBId= "",
-    KEGGId= "",
-    PubChemId= "",
-    Structure= "",
-    mzCloudId= as.integer(NA),
-    CompoundClass= "",
-    SmilesDescription= "",
-    InChiKey= "")
-  
-  
-  HeaderTable <- data.frame(
-    version = 5, 
-    CreationDate = NA, 
-    LastModifiedDate = NA,
-    Description = NA,
-    Company = NA,
-    ReadOnly = NA,
-    UserAccess = NA,
-    PartialEdits= NA)
-  
-  MaintenanceTable <- data.frame(
-    CreationDate =NA,
-    NoofCompoundsModified=NA,
-    Description=NA
-  )
-  
-  MasterSpectrumTable <- data.table(
-    SpectrumId = seq(1, length(RefSpectra$id), by=1),
-    CompoundId =seq(1, length(RefSpectra$id), by=1),
-    mzCloudURL = NA,
-    ScanFilter = NA,
-    RetentionTime = RT$retentionTime,
-    ScanNumber = NA,
-    PrecursorMass = RefSpectra$precursorMZ,
-    NeutralMass=NA,
-    CollisionEnergy= CollisionEnergy,
-    Polarity= "+",
-    FragmentationMode= "CID",
-    IonizationMode= NA,
-    MassAnalyzer= MassAnalyzer,
-    InstrumentName= NA,
-    InstrumentOperator= NA,
-    RawFileURL= NA,
-    blobMass= I(SkylinePeaks$mZ), 
-    blobIntensity= I(SkylinePeaks$int), 
-    blobAccuracy=NA,
-    blobResolution=NA,
-    blobNoises=NA,
-    blobFlags=NA,
-    blobTopPeaks=NA,
-    Version=NA,
-    CreationDate=NA,
-    Curator=NA,
-    CurationType=NA,
-    PrecursorIonType=NA,
-    Acession=NA)
-  
-  ##Writing new DB
-  conn4 <- dbConnect(SQLite(),DBoutput)
-  dbWriteTable(conn4,"CompoundTable", MasterCompoundTable, overwrite = T, append = F, field.types = c(CompoundId="INTEGER PRIMARY KEY", Synonyms="BLOB_TEXT", Structure="BLOB_TEXT"))
-  dbWriteTable(conn4, "SpectrumTable", MasterSpectrumTable, overwrite = T, append = F, field.types = c( SpectrumId = "INTEGER PRIMARY KEY", CompoundId ="INTEGER REFERENCES [CompoundTable]", blobMass="BLOB",
-                                                                                                        blobIntensity="BLOB", RetentionTime = "DOUBLE", CollisionEnergy = "TEXT", ScanNumber ="INTEGER", PrecursorMass="DOUBLE", NeutralMass="DOUBLE", blobAccuracy = "BLOB",blobFlags = "BLOB",blobResolution = "BLOB",blobNoises = "BLOB",blobTopPeaks = "BLOB", Version = "INTEGER"))
-  dbWriteTable(conn4, "HeaderTable", HeaderTable, overwrite = T, append = F, field.types = c(version = "INTEGER NOT NULL DEFAULT 0", CreationDate="TEXT",LastModifiedDate="TEXT", Description="TEXT", Company="TEXT", ReadOnly = "BOOL", UserAccess="TEXT", PartialEdits = "BOOL"))
-  dbWriteTable(conn4, "MaintenanceTable", MaintenanceTable, overwrite = T, append = F, field.types = c(CreationDate="TEXT",NoofCompoundsModified = "INTEGER", Description="TEXT"))
-  
-  
-  dbDisconnect(conn4)
-  
-  
-  
+  joined$massOffsetTag<- ""
+  joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("massOffset:",joined$massOffset[!is.na(joined$massOffset)])
+  Tags<-paste0(joined$massOffsetTag," mods:",modsOutput$ModString," ", "ions:")
 }
+else {
+  Tags<-paste0("mods:", modsOutput$ModString, " ", "ions:")
+
+}
+
+
+
+MasterCompoundTable <- data.table(
+  CompoundId = seq(1, length(SpectraTable$id), by=1), 
+  Formula = unlist(modsOutput$ModString), 
+  Name = unlist(paste0(SpectraTable$peptideSeq, "/", SpectraTable$precursorCharge)),
+  Synonyms = "",
+  Tag = unlist(Tags),
+  Sequence = SpectraTable$peptideSeq,
+  CASId = "",
+  ChemSpiderId= "",
+  HMDBId= "",
+  KEGGId= "",
+  PubChemId= "",
+  Structure= "",
+  mzCloudId= as.integer(NA),
+  CompoundClass= "",
+  SmilesDescription= "",
+  InChiKey= "")
+
+
+MasterSpectrumTable <- data.table(
+  SpectrumId = seq(1, length(SpectraTable$id), by=1), 
+  CompoundId =seq(1, length(SpectraTable$id), by=1),
+  mzCloudURL = "",
+  ScanFilter = "",
+  RetentionTime = SpectraTable$retentionTime,
+  ScanNumber = 0,#
+  PrecursorMass = SpectraTable$precursorMZ,
+  NeutralMass= 0,
+  CollisionEnergy= CollisionEnergy,
+  Polarity= "+",
+  FragmentationMode= FragmentationMode,
+  IonizationMode= "ESI",
+  MassAnalyzer= MassAnalyzer,
+  InstrumentName= "",
+  InstrumentOperator= "",
+  RawFileURL= "",
+  blobMass= I(allmzpacked), 
+  blobIntensity= I(allintpacked), 
+  blobAccuracy="",
+  blobResolution="",
+  blobNoises="",
+  blobFlags="",
+  blobTopPeaks="",
+  Version="",
+  CreationDate=NA,
+  Curator="",
+  CurationType="",
+  PrecursorIonType="",
+  Acession="")
+
+HeaderTable <- data.frame(
+  version = 5, 
+  CreationDate = NA, 
+  LastModifiedDate = NA,
+  Description = NA,
+  Company = NA,
+  ReadOnly = NA,
+  UserAccess = NA,
+  PartialEdits= NA)
+
+MaintenanceTable <- data.frame(
+  CreationDate = gsub("-"," ",Sys.Date()),
+  NoofCompoundsModified=NA,
+  Description=NA
+)
+
+conn4 <- dbConnect(SQLite(),DBoutput)
+dbWriteTable(conn4,"CompoundTable", MasterCompoundTable, overwrite = TRUE, append = F, field.types = c(CompoundId="INTEGER PRIMARY KEY", Synonyms="BLOB_TEXT", Structure="BLOB_TEXT"))
+dbWriteTable(conn4, "SpectrumTable", MasterSpectrumTable, overwrite = TRUE, append = F, field.types = c( SpectrumId = "INTEGER PRIMARY KEY", CompoundId ="INTEGER REFERENCES [CompoundTable]", blobMass="BLOB", blobIntensity="BLOB", RetentionTime = "DOUBLE", ScanNumber ="INTEGER", PrecursorMass="DOUBLE", NeutralMass="DOUBLE", blobAccuracy = "BLOB",blobFlags = "BLOB",blobResolution = "BLOB",blobNoises = "BLOB",blobTopPeaks = "BLOB", Version = "INTEGER"))
+dbWriteTable(conn4, "HeaderTable", HeaderTable, overwrite = TRUE, append = F, field.types = c(version = "INTEGER NOT NULL DEFAULT 0", CreationDate="TEXT",LastModifiedDate="TEXT", Description="TEXT", Company="TEXT", ReadOnly = "BOOL", UserAccess="TEXT", PartialEdits = "BOOL"))
+dbWriteTable(conn4, "MaintenanceTable", MaintenanceTable, overwrite = TRUE, append = F, field.types = c(CreationDate="TEXT",NoofCompoundsModified = "INTEGER", Description="TEXT"))
+dbDisconnect(conn4)
+
+dbDisconnect(conn4)
+}
+
+
+
+
 
 

@@ -24,7 +24,10 @@ OrganizePeaks<- function(x,precursor,z,topX,cutoff,IonTypes,TMTPro) {
   }
   if(TMTPro){
     dt<-dt[dt$masses>=200,]
-    dt<- dt[(dt$masses<=(precursor*z-150))|(dt$masses>=(precursor*z-175))|dt$annotations!="",]
+    lowmass<-precursor*z-175
+    highmass<-precursor*z-150
+    
+    dt<- dt[(dt$masses<=lowmass)|(dt$masses>=(highmass))|dt$annotations!="",]
   }
   
   
@@ -198,7 +201,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
     remove_modstring<-str_split(x,"/",simplify = T)[,-1] #Remove the peptide sequence and "ModString=" content
     remove_modstring<-str_split(remove_modstring,"/",simplify = T)[,1] #remove the terminal charge "/2"
     
-    if(nchar(remove_modstring)>=1){
+    if(nchar(remove_modstring)[1]>=1){
       out<-str_split(remove_modstring,",",simplify = T)
       #out<-str_split(out,"@")
       mods<-as.data.frame(out)
@@ -349,3 +352,4 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
 
 
 LibraryParserSpxCmp<-cmpfun(SpXLibraryParser)
+

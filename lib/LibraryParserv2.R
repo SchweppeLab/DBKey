@@ -344,7 +344,7 @@ rm(HeaderLists)
 
   
      parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
-                                CompoundClass = "Yeast", Formula =Modsoutput,
+                                 Formula =Modsoutput,
                              PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,
                              CollisionEnergy=CollisionEnergy,
                              iRT=RetentionTime, seq=sequence, z= Charge)

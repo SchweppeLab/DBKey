@@ -39,10 +39,7 @@ body <- dashboardBody(
               selectInput("FragInput", "Fragmentation", c("Read From file"= '', "HCD", "CID")),
               textInput("CeInput", "Normalized Collision Energy (NCE)","Read from file", placeholder =  "Read from file" ),
               selectInput("MassAnalyzerInput", "Mass Analyzer", c("FT", "IT")),
-              selectInput("TMTInput", "Recalculate Precursor Mz?", c("No", "Label-free", "TMT", "TMTPro")),
               fileInput("massOffset", "Mass Offset: ", accept=c(".csv")),
-              fileInput("RTinput", "RT Align File"),
-              switchInput("Decoy", label="Append Decoys", value = FALSE),
               div(switchInput("Filter", label="Filter", value = FALSE),
                   style = "font-size: 20px !important; text-align:left;"
               ),
@@ -57,6 +54,7 @@ body <- dashboardBody(
                 choiceValues = NULL
               )),
               textOutput("txt"),
+              hidden(switchInput("TMTInput",label= "Remove TMT-ions?",value= FALSE)),
               hidden(numericInput("topX", "Top N Peaks only", 150)),
               hidden(numericInput("cutoff", "% intensity cutoff", 0)),
               downloadButton(label = "Generate and Download .db", "downloadData"),
