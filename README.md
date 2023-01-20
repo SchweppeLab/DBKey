@@ -33,4 +33,8 @@ or
 
 In this case, we have opened the local host http port 3838 (i.e., 127.0.0.1:3838) for the Shiny server to communicate through.
 
+
 Simply open your favorite web browser and navigate to ```127.0.0.1:3838```
+
+## Usage 
+DBKey accepts Prosit-TMT .msp files and SpectraST .sptxt files. Top N and intensity cutoff will remove fragment peaks that don't pass the filters. Prosit .msp files  do not have fragmentation energy, mass analyzer, or fragmentation method, all of which are required for RTLS to function properly. Neutal loss fragment ion annotations are not accepted and are removed. If no ion annotations are provided, RTLS auto-generates them  prior to running. Unless diasabled, precursor m/zs are recalculated based on amino acid sequence and specifed modifications. MassOffset take a .csv input with two columns, "Sequence" and "massOffset". Sequence is a list of library entries to apply the corresponding massOffset to. To verify compatability with RTLS, .db files can be examined in mzVault software.
