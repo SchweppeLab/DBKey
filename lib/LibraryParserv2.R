@@ -24,7 +24,7 @@ OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
     dt<-dt[(dt$int/maxPeak)*100>cutoff,]
   }
   
-
+  dt$annotations <- gsub("\"", "", dt$annotations)
 
   dt<-setkey(dt, masses)
   return(dt)
@@ -333,7 +333,7 @@ rm(HeaderLists)
 
     blobMass<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,1]))))})
     blobInt<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,2]))))})
-    
+
     PeakAnnotations<-lapply(PeakDTOrganize, function(x) {
       paste(x$annotations,collapse=";")
     })
