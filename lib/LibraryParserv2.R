@@ -162,7 +162,7 @@ MonoisotopicMass <- function(formula = list(), isotopes = list(), charge = 0) {
   
 }
 
-LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, 
+LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClassArg,
                           Filter=FALSE, TMTPro=TMTPro, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
 
   # firstName<-grep("Name", Library[1:100])[1]
@@ -274,6 +274,8 @@ if(CollisionEnergy== "Read from file")
     {
       CollisionEnergy=CollisionEnergy
     }
+
+  
   
   Names<- HeaderLists[stri_detect_fixed(HeaderLists, "Name: ")]
   Names <- str_remove_all(Names, "Name: ")
@@ -347,7 +349,7 @@ rm(HeaderLists)
      parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
                                  Formula =Modsoutput,
                              PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,
-                             CollisionEnergy=CollisionEnergy,
+                             CollisionEnergy=CollisionEnergy,CompoundClass=CompoundClassArg,
                              iRT=RetentionTime, seq=sequence, z= Charge)
 
   return(parallelTable)

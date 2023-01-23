@@ -38,6 +38,7 @@ body <- dashboardBody(
               fileInput("LibInput", "Input Files", accept=c('.msp','.MSP','.sptxt','.blib'), multiple = TRUE),
               selectInput("FragInput", "Fragmentation", c("Read From file"= '', "HCD", "CID")),
               textInput("CeInput", "Normalized Collision Energy (NCE)","Read from file", placeholder =  "Read from file" ),
+              textInput("CompClassInput", "Compound Class","", placeholder =  "" ),
               selectInput("MassAnalyzerInput", "Mass Analyzer", c("FT", "IT")),
               fileInput("massOffset", "Mass Offset: ", accept=c(".csv")),
               div(switchInput("Filter", label="Filter", value = FALSE),
@@ -71,7 +72,7 @@ ui <- dashboardPage(
 )
 
 
-# Define server logic required to draw a histogram
+# Define server logic required to create a spectral library
 server <- function(input, output) {
   output$var <- renderText({ 
     grepl("blib",Library()$name[1])
@@ -80,6 +81,7 @@ server <- function(input, output) {
   FragmentationMode = reactive(input$FragInput)
   MassAnalyzer =  reactive(input$MassAnalyzerInput)
   CollisionEnergy = reactive(input$CeInput)
+  CompoundClassArg = reactive(input$CompClassInput)
   TMTPro = reactive(input$TMTInput)
   Filter = reactive(input$Filter)
   Decoy = reactive(input$Decoy)
@@ -108,9 +110,10 @@ server <- function(input, output) {
          FragmentationMode = (input$FragInput)
          MassAnalyzer =  (input$MassAnalyzerInput)
          CollisionEnergy = (input$CeInput)
+         CompoundClassArg = (input$CompClassInput)
          TMTPro = (input$TMTInput)
          })
-        DBbuilder(Library=Library(), FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer(), CollisionEnergy=CollisionEnergy,
+        DBbuilder(Library=Library(), FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer(), CollisionEnergy=CollisionEnergy, CompoundClass=CompoundClassArg,
                            Filter=Filter, DBoutput=x, topX=top, TMTPro = TMTPro, cutoff=cutoff, massOffset=massOff, IonTypes=IonTypes)
    
     } )

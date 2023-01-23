@@ -14,7 +14,7 @@ library(data.table)
 suppressWarnings({
 
 # main function of shiny app
-DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
+DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClass,
                      Filter, DBoutput, topX, cutoff, TMTPro, massOffset, IonTypes) {
 #Get file type from input file
 fileType<- (Library$name[1])
@@ -98,9 +98,9 @@ if(grepl("msp", fileType)) {
        source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
        Lib<-fread(z, skip=x-1, nrows=(y-x),strip.white = TRUE,header = FALSE, sep= "\n")
        LibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
-                     CollisionEnergy=CollisionEnergy,
+                     CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                      Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
-                     cutoff=cutoff,massOffset=NULL, IonTypes=NULL)
+                     cutoff=cutoff,massOffset=NULL, IonTypes=IonTypes)
      },
      x=NamesListX, y=NamesListY, z=LibraryPath,
      BPPARAM=SnowParam(workers = max(2,parallel::detectCores()-6)),SIMPLIFY = FALSE) %>% bind_rows
