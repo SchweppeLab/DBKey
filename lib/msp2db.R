@@ -46,7 +46,7 @@ if(grepl("msp", fileType)) {
       Lib<-LibraryRead
 
       resultsTable<- LibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
-                      CollisionEnergy=CollisionEnergy,
+                      CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                       Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
                       cutoff=cutoff,massOffset=massOffset, IonTypes=IonTypes)
 

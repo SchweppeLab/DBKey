@@ -11,8 +11,7 @@ OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
   
   dt<-x[which(x$int >0 ),]
   if(!is.null(IonTypes)) {
-    dt<-dt[(substr(dt$annotations,1,1) %in% IonTypes)]
-    
+    dt<-dt[Reduce(`|`, lapply(IonTypes, grepl, x = dt$annotations)), ]
   }
   if(topX < length(dt$masses)) {
     peakNum <- min(topX, length(dt$masses))
@@ -26,7 +25,7 @@ OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
   }
   
 
-  
+
   dt<-setkey(dt, masses)
   return(dt)
 }
@@ -202,8 +201,23 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
       mod<-trimws(mod)
       modforprecursor<<-append(modforprecursor, list(mod))
       split_positions<-str_split(mods[,2], "[[:alpha:]]",simplify = T)
-      pos<-split_positions[,min(2,ncol(split_positions))]
+      number_cols<-min(2,ncol(split_positions))
+      pos<-split_positions[,number_cols]
       pos<-str_split(pos, "/", simplify = T)[,1]
+      if(number_cols<2)
+      {
+        # Use regular expression to extract the first continuous integer from the input
+        int_string <- regmatches(pos, gregexpr("[[:digit:]]+", pos))[[1]]
+
+        # Convert the extracted string to a number
+        int_number <- as.numeric(int_string)
+
+        # Decrement the number
+        int_number <- int_number - 1
+
+        # Replace the original integer with the decremented number in the input string
+        pos <- sub(int_string, as.character(int_number), pos, fixed=TRUE)
+      }
       pos[pos<=0 & pos!=""] <- 0
       returnstring<-pos
       returnstring[returnstring!=""] <- paste0(mod[returnstring!=""],"@",returnstring[returnstring!=""],";", collapse = "")
@@ -304,11 +318,11 @@ rm(HeaderLists)
   dt$int<-as.numeric(dt$int)
   
   rm(PeakLists)
-  
-  dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
-  dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
-  
-
+  if(sum(grepl( "/", dt$annotations, fixed = TRUE))>0)
+  {
+    dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
+    dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
+  }
     
     PeakDT<-mapply(function(x,y) {dt[x:y]},
           x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
