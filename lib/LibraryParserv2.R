@@ -201,7 +201,8 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
       mod<-stri_replace_all_regex(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
       mod<-trimws(mod)
       modforprecursor<<-append(modforprecursor, list(mod))
-      pos<-str_split(mods[,2], "[[:alpha:]]",simplify = T)[,2]
+      split_positions<-str_split(mods[,2], "[[:alpha:]]",simplify = T)
+      pos<-split_positions[,min(2,ncol(split_positions))]
       pos<-str_split(pos, "/", simplify = T)[,1]
       pos[pos<=0 & pos!=""] <- 0
       returnstring<-pos
@@ -218,7 +219,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   Modsoutput<-str_replace(Modsoutput," ","")
 
   has_rt<-sum(sapply(AltComments, function(x) {  return(stri_detect_regex(x,"RetentionTime|iRT"))})) # Check to see if iRT or RetentionTime is present.
-
+  
   if(has_rt>=1)
   {
     rtItems<-sapply(AltComments, function(x) {  return(x[which(stri_detect_regex(x,"RetentionTime|iRT"))])    })

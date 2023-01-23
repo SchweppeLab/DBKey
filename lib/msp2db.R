@@ -63,9 +63,7 @@ if(grepl("msp", fileType)) {
       
     }
 
-  }
-
-  if(chunksize >= 500000) {
+  } else {
     NamesX<-seq(chunksize,length(LibraryRead)-500,by=chunksize)
     NamesY<-seq(chunksize+500,length(LibraryRead),by=chunksize)
     NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)+(x-1))[1]}, x = NamesX, y = NamesY)
@@ -78,7 +76,7 @@ if(grepl("msp", fileType)) {
   
   #get rid of library
    rm(LibraryRead)
-  }
+  
   if(fileType=="SpectraST"){
     resultsTable<-bpmapply( function(x,y,z) {
       source("~/Repos/MSPtoDB/lib/SpXLibraryParser.R")
@@ -108,6 +106,7 @@ if(grepl("msp", fileType)) {
      BPPARAM=SnowParam(workers = max(2,parallel::detectCores()-6)),SIMPLIFY = FALSE) %>% bind_rows
 
    }
+  }
 }
   
 
