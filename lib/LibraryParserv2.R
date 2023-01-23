@@ -196,11 +196,9 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
       out<-lapply(str_split(remove_modstring,";",simplify = T), stringr::str_trim)
       out<-str_split(out,"@")
       mods<-as.data.frame(do.call(rbind,out))
-      print(mods)
       mod<-mods[,1]
       mod<-stri_replace_all_regex(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
       mod<-trimws(mod)
-      print(mod)
       modforprecursor<<-append(modforprecursor, list(mod))
       split_positions<-str_split(mods[,2], "[[:alpha:]]",simplify = T)
       number_cols<-min(2,ncol(split_positions))
