@@ -342,7 +342,8 @@ rm(HeaderLists)
    
    
 
-    if(length(massOffset) != 0){
+  if(length(massOffset) != 0)
+  {
    seqCharge <- data.frame(tstrsplit(Names, "/"))
    seqCharge$mZ <- PrecursorMasses
    names(seqCharge) <- c("Sequence", "charge", "mZ")
@@ -353,17 +354,27 @@ rm(HeaderLists)
    joined$massOffsetTag<- ""
    joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("massOffset:",joined$massOffset[!is.na(joined$massOffset)])
     Tags<-paste0(joined$massOffsetTag," mods:",Modsoutput," ", "ions:", PeakAnnotations )
-    }
-  else {
-    Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)
-    
-}
+  }
+  else
+  {
+    Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)  
+  }
+
+  # Handle mapping of compound class:
+  mappedCompoundClasses = ""
+  if(length(CompoundClassArg) != 0)
+  {
+   seqCharge <- data.frame(tstrsplit(Names, "/"))
+   names(seqCharge) <- c("Sequence", "charge")
+   joined <-dplyr::left_join(seqCharge, read.csv(CompoundClassArg$datapath),by = "Sequence")
+   mappedCompoundClasses<-joined$CompoundClass
+  }
 
   
      parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
                                  Formula =Modsoutput,
                              PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,
-                             CollisionEnergy=CollisionEnergy,CompoundClass=CompoundClassArg,
+                             CollisionEnergy=CollisionEnergy,CompoundClass=mappedCompoundClasses,
                              iRT=RetentionTime, seq=sequence, z= Charge)
 
   return(parallelTable)
