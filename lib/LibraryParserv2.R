@@ -193,12 +193,14 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
     remove_modstring<-str_split(remove_modstring,"/",simplify = T)[,1] #remove the terminal charge "/2"
 
     if(nchar(remove_modstring)>=1){
-      out<-str_split(remove_modstring,"; ",simplify = T)
+      out<-lapply(str_split(remove_modstring,";",simplify = T), stringr::str_trim)
       out<-str_split(out,"@")
       mods<-as.data.frame(do.call(rbind,out))
+      print(mods)
       mod<-mods[,1]
       mod<-stri_replace_all_regex(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
       mod<-trimws(mod)
+      print(mod)
       modforprecursor<<-append(modforprecursor, list(mod))
       split_positions<-str_split(mods[,2], "[[:alpha:]]",simplify = T)
       number_cols<-min(2,ncol(split_positions))
@@ -207,16 +209,16 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
       if(number_cols<2)
       {
         # Use regular expression to extract the first continuous integer from the input
-        int_string <- regmatches(pos, gregexpr("[[:digit:]]+", pos))[[1]]
+        for(i in 1:length(pos))
+        {
+          int_string <- regmatches(pos[i], gregexpr("[[:digit:]]+", pos[i]))[[1]]
+          int_number <- as.numeric(int_string)
+          # Decrement the number
+          int_number <- int_number - 1
 
-        # Convert the extracted string to a number
-        int_number <- as.numeric(int_string)
-
-        # Decrement the number
-        int_number <- int_number - 1
-
-        # Replace the original integer with the decremented number in the input string
-        pos <- sub(int_string, as.character(int_number), pos, fixed=TRUE)
+          # Replace the original integer with the decremented number in the input string
+          pos[i] <- sub(int_string, as.character(int_number), pos[i], fixed=TRUE)
+        }
       }
       pos[pos<=0 & pos!=""] <- 0
       returnstring<-pos
