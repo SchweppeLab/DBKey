@@ -180,9 +180,16 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
 
   stringFinder <- function(x)
   {
-    return(x[which(stri_detect_fixed(x,"ModString"))])
+    match <- stri_detect_fixed(x, "ModString")
+    if(any(match))
+    {
+      return(x[match])
+    }
+    else
+    {
+      return(x[which(stri_detect_fixed(x, "mods"))])
+    }
   }
-
   Mods<-sapply(AltComments,stringFinder)
   
   unimodTable <- read.csv("~/Repos/MSPtoDB/unimod_custom.csv")
@@ -231,7 +238,6 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
 
   Modsoutput<-sapply(Mods,modparser)
   Modsoutput<-str_replace(Modsoutput," ","")
-
   has_rt<-sum(sapply(AltComments, function(x) {  return(stri_detect_regex(x,"RetentionTime|iRT"))})) # Check to see if iRT or RetentionTime is present.
   
   if(has_rt>=1)
@@ -308,22 +314,22 @@ if(CollisionEnergy== "Read from file")
 
 rm(HeaderLists)
   
-  #PeakLists1<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)),SIMPLIFY = TRUE)
-  PeakLists<-mapply(function(x) {str_split(PeakLists[[x]], "\\t",simplify = TRUE)}, x = seq(from=1,to=length(PeakLists), by=1))
-  PeakLists <- do.call("rbind", PeakLists)
+  PeakLists <- mapply(function(x) { str_split(PeakLists[[x]], "\\s+", simplify = TRUE)},x = seq(from = 1, to = length(PeakLists), by=1))
+
+  PeakLists <- na.omit(do.call("rbind", PeakLists))
 
   dt<-data.table(PeakLists)
   colnames(dt) <- c("masses", "int", "annotations")
   dt$masses<-as.numeric(dt$masses)
   dt$int<-as.numeric(dt$int)
-  
+
   rm(PeakLists)
   if(sum(grepl( "/", dt$annotations, fixed = TRUE))>0)
   {
     dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
     dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
   }
-    
+
     PeakDT<-mapply(function(x,y) {dt[x:y]},
           x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
 

@@ -18,11 +18,11 @@ DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, 
                      Filter, DBoutput, topX, cutoff, TMTPro, massOffset, IonTypes) {
 #Get file type from input file
 fileType<- (Library$name[1])
-if(grepl("msp", fileType)) {
+if(grepl("msp", tolower(fileType))) {
   fileType <- "Prosit"
-} else if(grepl("sptxt", fileType)) {
+} else if(grepl("sptxt", tolower(fileType))) {
   fileType <- "SpectraST"
-} else if(grepl("blib", fileType)) {
+} else if(grepl("blib", tolower(fileType))) {
   fileType<-"Skyline"
 }
   # Reading file in 
@@ -44,7 +44,7 @@ if(grepl("msp", fileType)) {
     if(fileType=="Prosit"){
       source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
       Lib<-LibraryRead
-
+      
       resultsTable<- LibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
                       CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                       Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
