@@ -54,7 +54,7 @@ body <- dashboardBody(
                 choiceValues = NULL
               )),
               textOutput("txt"),
-              hidden(switchInput("TMTInput",label= "Remove TMT-ions?",value= FALSE)),
+              (switchInput("TMTInput",label= "Remove TMT-ions?",value= FALSE)),
               hidden(numericInput("topX", "Top N Peaks only", 150)),
               hidden(numericInput("cutoff", "% intensity cutoff", 0)),
               downloadButton(label = "Generate and Download .db", "downloadData"),
