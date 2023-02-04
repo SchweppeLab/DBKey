@@ -11,8 +11,7 @@ OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
   
   dt<-x[which(x$int >0 ),]
   if(!is.null(IonTypes)) {
-    dt<-dt[(substr(dt$annotations,1,1) %in% IonTypes)]
-    
+    dt<-dt[Reduce(`|`, lapply(IonTypes, grepl, x = dt$annotations)), ]
   }
   if(topX < length(dt$masses)) {
     peakNum <- min(topX, length(dt$masses))
@@ -25,8 +24,8 @@ OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
     dt<-dt[(dt$int/maxPeak)*100>cutoff,]
   }
   
+  dt$annotations <- gsub("\"", "", dt$annotations)
 
-  
   dt<-setkey(dt, masses)
   return(dt)
 }
@@ -162,7 +161,7 @@ MonoisotopicMass <- function(formula = list(), isotopes = list(), charge = 0) {
   
 }
 
-LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, 
+LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClassArg,
                           Filter=FALSE, TMTPro=TMTPro, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
 
   # firstName<-grep("Name", Library[1:100])[1]
@@ -181,9 +180,16 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
 
   stringFinder <- function(x)
   {
-    return(x[which(stri_detect_fixed(x,"ModString"))])
+    match <- stri_detect_fixed(x, "ModString")
+    if(any(match))
+    {
+      return(x[match])
+    }
+    else
+    {
+      return(x[which(stri_detect_fixed(x, "mods"))])
+    }
   }
-
   Mods<-sapply(AltComments,stringFinder)
   
   unimodTable <- read.csv("~/Repos/MSPtoDB/unimod_custom.csv")
@@ -194,15 +200,31 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
     remove_modstring<-str_split(remove_modstring,"/",simplify = T)[,1] #remove the terminal charge "/2"
 
     if(nchar(remove_modstring)>=1){
-      out<-str_split(remove_modstring,"; ",simplify = T)
+      out<-lapply(str_split(remove_modstring,";",simplify = T), stringr::str_trim)
       out<-str_split(out,"@")
       mods<-as.data.frame(do.call(rbind,out))
       mod<-mods[,1]
       mod<-stri_replace_all_regex(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
       mod<-trimws(mod)
       modforprecursor<<-append(modforprecursor, list(mod))
-      pos<-str_split(mods[,2], "[[:alpha:]]",simplify = T)[,2]
+      split_positions<-str_split(mods[,2], "[[:alpha:]]",simplify = T)
+      number_cols<-min(2,ncol(split_positions))
+      pos<-split_positions[,number_cols]
       pos<-str_split(pos, "/", simplify = T)[,1]
+      if(number_cols<2)
+      {
+        # Use regular expression to extract the first continuous integer from the input
+        for(i in 1:length(pos))
+        {
+          int_string <- regmatches(pos[i], gregexpr("[[:digit:]]+", pos[i]))[[1]]
+          int_number <- as.numeric(int_string)
+          # Decrement the number
+          int_number <- int_number - 1
+
+          # Replace the original integer with the decremented number in the input string
+          pos[i] <- sub(int_string, as.character(int_number), pos[i], fixed=TRUE)
+        }
+      }
       pos[pos<=0 & pos!=""] <- 0
       returnstring<-pos
       returnstring[returnstring!=""] <- paste0(mod[returnstring!=""],"@",returnstring[returnstring!=""],";", collapse = "")
@@ -216,9 +238,8 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
 
   Modsoutput<-sapply(Mods,modparser)
   Modsoutput<-str_replace(Modsoutput," ","")
-
   has_rt<-sum(sapply(AltComments, function(x) {  return(stri_detect_regex(x,"RetentionTime|iRT"))})) # Check to see if iRT or RetentionTime is present.
-
+  
   if(has_rt>=1)
   {
     rtItems<-sapply(AltComments, function(x) {  return(x[which(stri_detect_regex(x,"RetentionTime|iRT"))])    })
@@ -273,6 +294,8 @@ if(CollisionEnergy== "Read from file")
     {
       CollisionEnergy=CollisionEnergy
     }
+
+  
   
   Names<- HeaderLists[stri_detect_fixed(HeaderLists, "Name: ")]
   Names <- str_remove_all(Names, "Name: ")
@@ -291,22 +314,22 @@ if(CollisionEnergy== "Read from file")
 
 rm(HeaderLists)
   
-  #PeakLists1<- mapply(function(x, y) {Library[x:y]}, x = peakindexes+1, y = c(nameindexes[-1]-1, length(Library)),SIMPLIFY = TRUE)
-  PeakLists<-mapply(function(x) {str_split(PeakLists[[x]], "\\t",simplify = TRUE)}, x = seq(from=1,to=length(PeakLists), by=1))
-  PeakLists <- do.call("rbind", PeakLists)
+  PeakLists <- mapply(function(x) { str_split(PeakLists[[x]], "\\s+", simplify = TRUE)},x = seq(from = 1, to = length(PeakLists), by=1))
+
+  PeakLists <- na.omit(do.call("rbind", PeakLists))
 
   dt<-data.table(PeakLists)
   colnames(dt) <- c("masses", "int", "annotations")
   dt$masses<-as.numeric(dt$masses)
   dt$int<-as.numeric(dt$int)
-  
-  rm(PeakLists)
-  
-  dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
-  dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
-  
 
-    
+  rm(PeakLists)
+  if(sum(grepl( "/", dt$annotations, fixed = TRUE))>0)
+  {
+    dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
+    dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
+  }
+
     PeakDT<-mapply(function(x,y) {dt[x:y]},
           x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
 
@@ -316,7 +339,7 @@ rm(HeaderLists)
 
     blobMass<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,1]))))})
     blobInt<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,2]))))})
-    
+
     PeakAnnotations<-lapply(PeakDTOrganize, function(x) {
       paste(x$annotations,collapse=";")
     })
@@ -325,7 +348,8 @@ rm(HeaderLists)
    
    
 
-    if(length(massOffset) != 0){
+  if(length(massOffset) != 0)
+  {
    seqCharge <- data.frame(tstrsplit(Names, "/"))
    seqCharge$mZ <- PrecursorMasses
    names(seqCharge) <- c("Sequence", "charge", "mZ")
@@ -336,17 +360,27 @@ rm(HeaderLists)
    joined$massOffsetTag<- ""
    joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("massOffset:",joined$massOffset[!is.na(joined$massOffset)])
     Tags<-paste0(joined$massOffsetTag," mods:",Modsoutput," ", "ions:", PeakAnnotations )
-    }
-  else {
-    Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)
-    
-}
+  }
+  else
+  {
+    Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)  
+  }
+
+  # Handle mapping of compound class:
+  mappedCompoundClasses = ""
+  if(length(CompoundClassArg) != 0)
+  {
+   seqCharge <- data.frame(tstrsplit(Names, "/"))
+   names(seqCharge) <- c("Sequence", "charge")
+   joined <-dplyr::left_join(seqCharge, read.csv(CompoundClassArg$datapath),by = "Sequence")
+   mappedCompoundClasses<-joined$CompoundClass
+  }
 
   
      parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
                                  Formula =Modsoutput,
                              PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,
-                             CollisionEnergy=CollisionEnergy,
+                             CollisionEnergy=CollisionEnergy,CompoundClass=mappedCompoundClasses,
                              iRT=RetentionTime, seq=sequence, z= Charge)
 
   return(parallelTable)

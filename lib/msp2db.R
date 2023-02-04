@@ -14,15 +14,15 @@ library(data.table)
 suppressWarnings({
 
 # main function of shiny app
-DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy,
+DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClass,
                      Filter, DBoutput, topX, cutoff, TMTPro, massOffset, IonTypes) {
 #Get file type from input file
 fileType<- (Library$name[1])
-if(grepl("msp", fileType)) {
+if(grepl("msp", tolower(fileType))) {
   fileType <- "Prosit"
-} else if(grepl("sptxt", fileType)) {
+} else if(grepl("sptxt", tolower(fileType))) {
   fileType <- "SpectraST"
-} else if(grepl("blib", fileType)) {
+} else if(grepl("blib", tolower(fileType))) {
   fileType<-"Skyline"
 }
   # Reading file in 
@@ -44,9 +44,9 @@ if(grepl("msp", fileType)) {
     if(fileType=="Prosit"){
       source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
       Lib<-LibraryRead
-
+      
       resultsTable<- LibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
-                      CollisionEnergy=CollisionEnergy,
+                      CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                       Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
                       cutoff=cutoff,massOffset=massOffset, IonTypes=IonTypes)
 
@@ -63,9 +63,7 @@ if(grepl("msp", fileType)) {
       
     }
 
-  }
-
-  if(chunksize >= 500000) {
+  } else {
     NamesX<-seq(chunksize,length(LibraryRead)-500,by=chunksize)
     NamesY<-seq(chunksize+500,length(LibraryRead),by=chunksize)
     NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)+(x-1))[1]}, x = NamesX, y = NamesY)
@@ -78,7 +76,7 @@ if(grepl("msp", fileType)) {
   
   #get rid of library
    rm(LibraryRead)
-  }
+  
   if(fileType=="SpectraST"){
     resultsTable<-bpmapply( function(x,y,z) {
       source("~/Repos/MSPtoDB/lib/SpXLibraryParser.R")
@@ -100,14 +98,15 @@ if(grepl("msp", fileType)) {
        source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
        Lib<-fread(z, skip=x-1, nrows=(y-x),strip.white = TRUE,header = FALSE, sep= "\n")
        LibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
-                     CollisionEnergy=CollisionEnergy,
+                     CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                      Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
-                     cutoff=cutoff,massOffset=NULL, IonTypes=NULL)
+                     cutoff=cutoff,massOffset=NULL, IonTypes=IonTypes)
      },
      x=NamesListX, y=NamesListY, z=LibraryPath,
      BPPARAM=SnowParam(workers = max(2,parallel::detectCores()-6)),SIMPLIFY = FALSE) %>% bind_rows
 
    }
+  }
 }
   
 
