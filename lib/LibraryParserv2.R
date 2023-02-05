@@ -7,6 +7,8 @@ library(blob)
 library(readr)
 library(compiler)
 
+
+## Filtering peak functions
 OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
   
   dt<-x[which(x$int >0 ),]
@@ -30,6 +32,7 @@ OrganizePeaks<- function(x,topX,cutoff,IonTypes) {
   return(dt)
 }
 
+
 OrderPeaks<- function(x) {
   
   dt<-setkey(x, masses)
@@ -41,7 +44,7 @@ OrderPeaks<- function(x) {
 OrgPeakCmp<-cmpfun(OrganizePeaks)
 OrdPeakCmp<-cmpfun(OrderPeaks)
 
-
+## Rebuilding function from OrgMassSpecR for monoisotopic mass correction https://orgmassspec.github.io/
 ConvertPeptide <- function(sequence, output = "elements", IAA = TRUE) {
   
   peptideVector <- strsplit(sequence, split = "")[[1]]

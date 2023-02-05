@@ -22,14 +22,7 @@ OrganizePeaks<- function(x,precursor,z,topX,cutoff,IonTypes,TMTPro) {
     maxPeak<-max(dt$int)
     dt<-dt[(dt$int/maxPeak)*100>cutoff,]
   }
-  if(TRUE){
-    dt<-dt[dt$masses>=200,]
-    lowmass<-precursor*z-175
-    highmass<-precursor*z-150
-    
-    dt<- dt[(dt$masses<=lowmass)|(dt$masses>=(highmass))|dt$annotations!="",]
-  }
-  
+
   
   dt<-setkey(dt, masses)
   return(dt)
