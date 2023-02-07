@@ -232,6 +232,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
       returnstring<-trimws(returnstring,c("right")," ")
     } else {
       returnstring<-""
+      modforprecursor<<-append(modforprecursor,c(0.0))
     }
     return(returnstring[[1]])
   }
@@ -309,7 +310,7 @@ if(CollisionEnergy== "Read from file")
   PrecursorMasses<- mapply(function(x,y,z) { 
     MonoisotopicMass(ConvertPeptide(x), charge = y) + (z/y)}, 
     x = sequence, y = Charge, z=totalprecursormod)
-  
+
 
 
 rm(HeaderLists)
