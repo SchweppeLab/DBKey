@@ -45,4 +45,9 @@ Simply open your favorite web browser and navigate to ```127.0.0.1:3838```
  - Top N and intensity cutoff will remove fragment peaks that don't pass the filters.
  - MassOffset take a .csv input with two columns, "Sequence" and "massOffset". Sequence is a list of library entries to apply the corresponding massOffset to.
  - To verify compatibility with RTLS, .db files can be examined in mzVault software. (https://thermo.flexnetoperations.com/)
+ - Example input files are provided in examples folder
 
+## Reference
+Real-time spectral library matching for sample multiplexed quantitative proteomics.
+Christopher D McGann, William D Barshop, Jesse Canterbury, Chuwei Lin, Wassim Gabriel, Mathias Wilhelm, Graeme McAlister, Devin K Schweppe
+bioRxiv 2023.02.08.527705; doi: https://doi.org/10.1101/2023.02.08.527705 
