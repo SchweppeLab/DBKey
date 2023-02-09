@@ -1,4 +1,4 @@
-# DBKwt
+# DBKey
 These instructions will help users to build the MSPtoDB docker image, execute it, and connect to the shiny webserver.
 
 ## Clone the repo:
