@@ -45,8 +45,8 @@ OrgPeakCmp<-cmpfun(OrganizePeaks)
 OrdPeakCmp<-cmpfun(OrderPeaks)
 
 ## Rebuilding function from OrgMassSpecR for monoisotopic mass correction https://orgmassspec.github.io/
-ConvertPeptide <- function(sequence, output = "elements", IAA = TRUE) {
-  
+ConvertPeptide <- function(sequence, output = "elements", IAA = FALSE) {
+
   peptideVector <- strsplit(sequence, split = "")[[1]]
   
   if(output == "elements") {
@@ -73,8 +73,8 @@ ConvertPeptide <- function(sequence, output = "elements", IAA = TRUE) {
       if(residue == "Y") element <- c(C = 9, H = 9, N = 1, O = 2, S = 0)
       if(residue == "V") element <- c(C = 5, H = 9, N = 1, O = 1, S = 0)
       
-      if(residue == "C" & IAA == FALSE) element <- c(C = 3, H = 5, N = 1, O = 1, S = 1)
-      if(residue == "C" & IAA == TRUE) element <- c(C = 5, H = 8, N = 2, O = 2, S = 1)
+      if(residue == "C" && IAA == FALSE) element <- c(C = 3, H = 5, N = 1, O = 1, S = 1)
+      if(residue == "C" && IAA == TRUE) element <- c(C = 5, H = 8, N = 2, O = 2, S = 1)
       
       return(element)
       
@@ -235,6 +235,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
       returnstring<-trimws(returnstring,c("right")," ")
     } else {
       returnstring<-""
+      modforprecursor<<-append(modforprecursor,c(0.0))
     }
     return(returnstring[[1]])
   }
@@ -312,7 +313,7 @@ if(CollisionEnergy== "Read from file")
   PrecursorMasses<- mapply(function(x,y,z) { 
     MonoisotopicMass(ConvertPeptide(x), charge = y) + (z/y)}, 
     x = sequence, y = Charge, z=totalprecursormod)
-  
+
 
 
 rm(HeaderLists)
