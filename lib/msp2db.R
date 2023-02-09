@@ -10,9 +10,6 @@ library(vroom)
 library(data.table)
 
 
-#testing
-suppressWarnings({
-
 # main function of shiny app
 DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClass,
                      Filter, DBoutput, topX, cutoff, TMTPro, massOffset, IonTypes) {
@@ -36,7 +33,7 @@ if(grepl("msp", tolower(fileType))) {
   
     chunksize<-min(length(LibraryRead),500000)
     
-
+## accounting for small libraries
   if(chunksize < 500000){
 
 
@@ -64,6 +61,7 @@ if(grepl("msp", tolower(fileType))) {
     }
 
   } else {
+    ## finding entry beginnings across the file for splitting
     NamesX<-seq(chunksize,length(LibraryRead)-500,by=chunksize)
     NamesY<-seq(chunksize+500,length(LibraryRead),by=chunksize)
     NamesList<-mapply(function(x, y) {(grep("^Name: ", LibraryRead[x:y],fixed = FALSE, perl = TRUE)+(x-1))[1]}, x = NamesX, y = NamesY)
@@ -197,4 +195,4 @@ SkylineConvert(x=LibraryPath,CollisionEnergy=CollisionEnergy,FragmentationMode=F
 
   }
 }
-})
+

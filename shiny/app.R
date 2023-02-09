@@ -55,7 +55,7 @@ body <- dashboardBody(
                 choiceValues = NULL
               )),
               textOutput("txt"),
-              hidden(switchInput("TMTInput",label= "Remove TMT-ions?",value= FALSE)),
+              
               hidden(numericInput("topX", "Top N Peaks only", 150)),
               hidden(numericInput("cutoff", "% intensity cutoff", 0)),
               downloadButton(label = "Generate and Download .db", "downloadData"),
@@ -81,7 +81,6 @@ server <- function(input, output) {
   FragmentationMode = reactive(input$FragInput)
   MassAnalyzer =  reactive(input$MassAnalyzerInput)
   CollisionEnergy = reactive(input$CeInput)
-  TMTPro = reactive(input$TMTInput)
   Filter = reactive(input$Filter)
   Decoy = reactive(input$Decoy)
   DBoutput = reactive(input$DbInput)
@@ -113,7 +112,7 @@ server <- function(input, output) {
          TMTPro = (input$TMTInput)
          })
         DBbuilder(Library=Library(), FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer(), CollisionEnergy=CollisionEnergy, CompoundClass=CompoundClassArg,
-                           Filter=Filter, DBoutput=x, topX=top, TMTPro = TMTPro, cutoff=cutoff, massOffset=massOff, IonTypes=IonTypes)
+                           Filter=Filter, DBoutput=x, topX=top, TMTPro = FALSE, cutoff=cutoff, massOffset=massOff, IonTypes=IonTypes)
    
     } )
   output$txt <-  renderText({
