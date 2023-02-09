@@ -1,14 +1,14 @@
-# MSPtoDB
+# DBKwt
 These instructions will help users to build the MSPtoDB docker image, execute it, and connect to the shiny webserver.
 
 ## Clone the repo:
 First, users will need to clone a local copy of the repository.  
 
-``` git clone https://github.com/SchweppeLab/MSPtoDB.git ```
+``` git clone https://github.com/SchweppeLab/DBKey.git ```
 
 Next, change directory into the project.
 ```
-cd MSPtoDB
+cd DBKey
 ```
 
 ## Building the docker image:
@@ -27,7 +27,7 @@ This process may take several minutes for the relevant base images to be pulled,
 
 Finally, one may launch a container using the following command:
 
-```docker-compose up -d msptodb```
+```docker-compose up -d dbkey```
 or
 ```docker compose up -d```
 
