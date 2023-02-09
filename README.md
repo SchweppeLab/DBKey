@@ -1,5 +1,5 @@
 # DBKey
-These instructions will help users to build the MSPtoDB docker image, execute it, and connect to the shiny webserver.
+These instructions will help users to build the DBKey docker image, execute it, and connect to the shiny webserver.
 
 ## Clone the repo:
 First, users will need to clone a local copy of the repository.  
