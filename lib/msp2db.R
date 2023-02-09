@@ -92,7 +92,7 @@ if(grepl("msp", tolower(fileType))) {
 
    if(fileType=="Prosit"){
      resultsTable<-bpmapply(function(x,y,z) {
-       write.csv(NamesListX, file = "didntwork2.csv")
+       
        source("~/Repos/MSPtoDB/lib/LibraryParserv2.R")
        Lib<-fread(z, skip=x-1, nrows=(y-x),strip.white = TRUE,header = FALSE, sep= "\n")
        LibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
