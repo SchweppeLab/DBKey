@@ -18,8 +18,6 @@ on:
 #    types: [published]
 
 env:
-  # Docker Hub Registry, or otherwise
-  REGISTRY: docker.io
   # Image Name to push
   IMAGE_NAME: wbarshop/dbkey
   # Dependency Image Name to push
@@ -71,7 +69,7 @@ jobs:
           context: ./dependencies
           file: ./dependencies/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.DEPENDENCY_IMAGE_NAME }}:${{ needs.build_and_push_dependency_image.outputs.ci_tag }}
           labels: ${{ steps.meta.outputs.labels }}
 
   build_and_push_main_image:
