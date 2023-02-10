@@ -31,7 +31,7 @@ jobs:
     name: Push Dependency image to Docker Hub
     runs-on: ubuntu-latest
     outputs:
-      output1: ${{ steps.filter.outputs.workflows }}
+      output1: ${{ steps.filter.outputs.depends }}
     steps:
     - uses: actions/checkout@v2
     - uses: dorny/paths-filter@v2
@@ -40,7 +40,7 @@ jobs:
         filters: |
           depends:
             - '.dependencies/**'
-    # run only if 'workflows' files were changed
+    # run only if 'depends' files were changed
     - name: Build Dependency Image
       if: steps.filter.outputs.depends == 'true'
       steps:
