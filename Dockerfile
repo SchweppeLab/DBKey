@@ -1,4 +1,4 @@
-FROM wbarshop/msptodb_base
+FROM wbarshop/msptodb_base:latest
 MAINTAINER Direct All Questions Directly To Devin Schweppe "dkschwep@uw.edu"
 
 RUN mkdir /root/Repos/
