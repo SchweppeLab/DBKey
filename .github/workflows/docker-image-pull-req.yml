@@ -44,7 +44,7 @@ jobs:
     if: ${{ needs.check_changes.outputs.depends == 'true' }}
     runs-on: ubuntu-latest
     outputs:
-      ci_tag: ${{ steps.meta.outputs.tags }}
+      ci_tag: ${{ steps.meta.outputs.labels.org.opencontainers.image.version }}
 
     # run only if 'depends' files were changed
     steps:
@@ -91,14 +91,16 @@ jobs:
       
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        uses: docker/metadata-action@v4
         with:
           images: ${{ env.IMAGE_NAME }}
+          flavor: latest=false
+          tags: type=ref,event=pr
       
       - name: Build and push Docker image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
           push: true
-          tags: ${{ needs.build_and_push_dependency_image.outputs.ci_tag }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
