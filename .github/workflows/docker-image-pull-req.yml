@@ -76,7 +76,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   build_and_push_main_image:
-    needs: build_and_push_dependency_image,check_changes
+    needs: [build_and_push_dependency_image,check_changes]
     name: Build and Push DBKey Docker Image
     runs-on: ubuntu-latest
     steps:
