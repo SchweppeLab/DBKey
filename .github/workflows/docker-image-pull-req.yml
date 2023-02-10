@@ -45,7 +45,7 @@ jobs:
     name: Build and Push DBKey Dependency Docker Image
     runs-on: ubuntu-latest
     outputs:
-      ci_tag: ${{ steps.meta.outputs.labels.org.opencontainers.image.version }}
+      ci_tag: ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
 
     # run only if 'depends' files were changed
     steps:
