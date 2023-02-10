@@ -42,6 +42,7 @@ jobs:
   build_and_push_dependency_image:
     needs: check_changes
     if: ${{ needs.check_changes.outputs.depends == 'true' }}
+    name: Build and Push DBKey Dependency Docker Image
     runs-on: ubuntu-latest
     outputs:
       ci_tag: ${{ steps.meta.outputs.labels.org.opencontainers.image.version }}
@@ -76,12 +77,12 @@ jobs:
 
   build_and_push_main_image:
     needs: build_and_push_dependency_image
-    name: Push Docker image to Docker Hub
+    name: Build and Push DBKey Docker Image
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
-      - run: sed -i 's/${{ env.DEPENDENCY_IMAGE_NAME }}:latest/${{ env.DEPENDENCY_IMAGE_NAME }}:${{ needs.build_and_push_dependency_image.outputs.ci_tag }}/' Dockerfile
+      - run: sed -i 's|${{ env.DEPENDENCY_IMAGE_NAME }}:latest|${{ env.DEPENDENCY_IMAGE_NAME }}:${{ needs.build_and_push_dependency_image.outputs.ci_tag }}|' Dockerfile
 
       - name: Log in to Docker Hub
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
