@@ -12,7 +12,7 @@ name: Publish Docker image
 on:
   push:
     branches: [ "main" ]
-
+  
 env:
   # Image Name to push
   IMAGE_NAME: wbarshop/dbkey
@@ -57,7 +57,8 @@ jobs:
         with:
           images: name=${{ env.DEPENDENCY_IMAGE_NAME }}
           flavor: latest=true
-          tags: type=ref,event=push
+          tags: |
+            type=sha
     
       - name: Build and push Docker image
         if: ${{ needs.check_changes.outputs.depends == 'true' }}
@@ -89,7 +90,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           flavor: latest=true
-          tags: type=ref,event=push
+          tags: |
+            type=sha
       
       - name: Build and push Docker image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
