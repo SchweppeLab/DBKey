@@ -44,10 +44,10 @@ jobs:
   build_and_push_dependency_image:
     needs: check_changes
     if: ${{ needs.check_changes.outputs.depends == 'true' }}
-    name: Build and push Dependency image to Docker Hub
+    runs-on: ubuntu-latest
+    #name: Build and push Dependency image to Docker Hub
     # run only if 'depends' files were changed
-    - name: Build and push
-      steps:
+    - steps:
         - name: Check out the repo
           uses: actions/checkout@v3
       
