@@ -66,7 +66,7 @@ jobs:
           tags: type=ref,event=pr
     
       - name: Build and push Docker image
-        if: ${{ needs.check_changes.outputs.depends == 'false' }} ###TEMPORARY CHANGE TO SPEED UP TESTING
+        if: ${{ needs.check_changes.outputs.depends == 'true' }}
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: ./dependencies
