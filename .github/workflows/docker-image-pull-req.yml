@@ -41,7 +41,6 @@ jobs:
 
   build_and_push_dependency_image:
     needs: check_changes
-    if: ${{ needs.check_changes.outputs.depends == 'false' }} ###TEMPORARY CHANGE TO SPEED UP TESTING
     name: Build and Push DBKey Dependency Docker Image
     runs-on: ubuntu-latest
     outputs:
@@ -67,6 +66,7 @@ jobs:
           tags: type=ref,event=pr
     
       - name: Build and push Docker image
+        if: ${{ needs.check_changes.outputs.depends == 'false' }} ###TEMPORARY CHANGE TO SPEED UP TESTING
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: ./dependencies
