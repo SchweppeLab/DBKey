@@ -96,8 +96,8 @@ jobs:
 
       - name: Check out the repo
         uses: actions/checkout@v3
-        #{{ needs.build_and_push_dependency_image.outputs.ci_tag }}
-      - run: sed -i 's|${{ env.DEPENDENCY_IMAGE_NAME }}:latest|${{ env.DEPENDENCY_IMAGE_NAME }}:${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}|g' Dockerfile && cat Dockerfile
+        
+      - run: sed -i 's|${{ env.DEPENDENCY_IMAGE_NAME }}:latest|${{ env.DEPENDENCY_IMAGE_NAME }}:${{ needs.build_and_push_dependency_image.outputs.ci_tag }}|g' Dockerfile
         if: ${{ needs.check_changes.outputs.depends == 'true' }}
             
       - name: Build and push Docker image
