@@ -71,7 +71,7 @@ jobs:
           context: ./dependencies
           file: ./dependencies/Dockerfile
           push: true
-          tags: ${{ env.DEPENDENCY_IMAGE_NAME }}:${{ needs.build_and_push_dependency_image.outputs.ci_tag }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
   build_and_push_main_image:
