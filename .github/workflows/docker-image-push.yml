@@ -12,14 +12,8 @@ name: Publish Docker image
 on:
   push:
     branches: [ "main" ]
-#  pull_request:
-#    branches: [ "main" ]
-#  release:
-#    types: [published]
 
 env:
-  # Docker Hub Registry, or otherwise
-  REGISTRY: docker.io
   # Image Name to push
   IMAGE_NAME: wbarshop/dbkey
   # Dependency Image Name to push
@@ -43,7 +37,7 @@ jobs:
 
   build_and_push_dependency_image:
     needs: check_changes
-    if: ${{ needs.check_changes.outputs.depends == 'true' }}
+    name: Build and Push DBKey Dependency Docker Image
     runs-on: ubuntu-latest
 
     # run only if 'depends' files were changed
@@ -59,22 +53,25 @@ jobs:
     
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        uses: docker/metadata-action@v4
         with:
-          images: ${{ env.DEPENDENCY_IMAGE_NAME }}
+          images: name=${{ env.DEPENDENCY_IMAGE_NAME }}
+          flavor: latest=true
+          tags: type=ref,event=push
     
       - name: Build and push Docker image
+        if: ${{ needs.check_changes.outputs.depends == 'true' }}
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: ./dependencies
           file: ./dependencies/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }},latest
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
   build_and_push_main_image:
-    needs: build_and_push_dependency_image
-    name: Push Docker image to Docker Hub
+    needs: [build_and_push_dependency_image,check_changes]
+    name: Build and Push DBKey Docker Image
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
@@ -88,14 +85,16 @@ jobs:
       
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        uses: docker/metadata-action@v4
         with:
           images: ${{ env.IMAGE_NAME }}
+          flavor: latest=true
+          tags: type=ref,event=push
       
       - name: Build and push Docker image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }},latest
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
