@@ -33,13 +33,13 @@ jobs:
     outputs:
       output1: ${{ steps.filter.outputs.depends }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: dorny/paths-filter@v2
       id: filter
       with:
         filters: |
           depends:
-            - '.dependencies/**'
+            - 'dependencies/**'
     # run only if 'depends' files were changed
     - name: Build Dependency Image
       if: steps.filter.outputs.depends == 'true'
