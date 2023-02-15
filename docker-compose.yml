@@ -2,7 +2,7 @@ version: "3.0"
 
 services:
   msptodb:
-    image: wbarshop/dbkey
+    image: dkschwep/dbkey
     container_name: dbkey
     build:
       context: .

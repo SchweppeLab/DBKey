@@ -15,9 +15,9 @@ on:
   
 env:
   # Image Name to push
-  IMAGE_NAME: wbarshop/dbkey
+  IMAGE_NAME: dkschwep/dbkey
   # Dependency Image Name to push
-  DEPENDENCY_IMAGE_NAME: wbarshop/dbkey_base
+  DEPENDENCY_IMAGE_NAME: dkschwep/dbkey_base
 
 
 jobs:
