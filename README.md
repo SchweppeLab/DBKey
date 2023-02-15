@@ -11,21 +11,11 @@ Next, change directory into the project.
 cd DBKey
 ```
 
-## Building the docker image:
+## Running a docker container:
 First, ensure that docker is installed.  You may do so by checking if the ```docker --version``` command returns a sensical result.
 If it is not installed, please visit the docker website for the relevant directions to install docker on your host operating system.
 
-Once docker is installed, we may build a copy of the image like so:
-
-``` docker-compose build ```
-or
-``` docker compose build ```
-
-This process may take several minutes for the relevant base images to be pulled, and dependencies to be installed.
-
-## Running a docker container:
-
-Finally, one may launch a container using the following command:
+Once docker is installed, one may pull and launch the container using the following command, which will pull the latest version from DockerHub:
 
 ```docker-compose up -d dbkey```
 or
@@ -33,8 +23,17 @@ or
 
 In this case, we have opened the local host http port 3838 (i.e., 127.0.0.1:3838) for the Shiny server to communicate through.
 
-
 Simply open your favorite web browser and navigate to ```127.0.0.1:3838```
+
+
+## Building the docker image locally:
+We may build a copy of the image like so:
+
+``` docker-compose build ```
+or
+``` docker compose build ```
+
+This process may take several minutes for the relevant base images to be pulled, and dependencies to be installed.
 
 ## Usage 
  - DBKey accepts Prosit-TMT .msp files and SpectraST .sptxt files. 
