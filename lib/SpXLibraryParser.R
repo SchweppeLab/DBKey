@@ -163,7 +163,7 @@ MonoisotopicMass <- function(formula = list(), isotopes = list(), charge = 0) {
 
 
 
-SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, 
+SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClassArg,
                              Filter=TRUE, TMTPro, Source, topX=0, cutoff=0,massOffset=NULL, IonTypes=NULL) {
   
   
@@ -330,10 +330,20 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   Names <- gsub("[[:lower:]]", "", Names)
   Names<- paste0(Names, "/", Charge)
   
+  # Handle mapping of compound class:
+  mappedCompoundClasses = ""
+  if(length(CompoundClassArg) != 0)
+  {
+   seqCharge <- data.frame(tstrsplit(Names, "/"))
+   names(seqCharge) <- c("Sequence", "charge")
+   joined <-dplyr::left_join(seqCharge, read.csv(CompoundClassArg$datapath),by = "Sequence")
+   mappedCompoundClasses<-joined$CompoundClass
+  }
+
   parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
                              CompoundClass = "Yeast", Formula = Modsoutput, 
                              PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,
-                             CollisionEnergy=CollisionEnergy,
+                             CollisionEnergy=CollisionEnergy, CompoundClass=mappedCompoundClasses,
                              iRT=RetentionTime, seq=sequence, z= Charge)
   
   return(parallelTable)
