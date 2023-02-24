@@ -316,8 +316,6 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
     seqCharge$mZ <- PrecursorMasses
     names(seqCharge) <- c("Sequence", "charge", "mZ")
     joined <-dplyr::left_join(seqCharge, read.csv(massOffset$datapath),by = "Sequence")
-    joined$mZ[!is.na(joined$massOffset )] <- as.numeric(joined$mZ[!is.na(joined$massOffset )])+
-      (joined$massOffset[!is.na(joined$massOffset )])/as.numeric(joined$charge[!is.na(joined$massOffset )])
     
     joined$massOffsetTag<- ""
     joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("massOffset:",joined$massOffset[!is.na(joined$massOffset)])
