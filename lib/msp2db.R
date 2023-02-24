@@ -98,7 +98,7 @@ if(grepl("msp", tolower(fileType))) {
        LibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
                      CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                      Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
-                     cutoff=cutoff,massOffset=NULL, IonTypes=IonTypes)
+                     cutoff=cutoff,massOffset=massOffset, IonTypes=IonTypes)
      },
      x=NamesListX, y=NamesListY, z=LibraryPath,
      BPPARAM=SnowParam(workers = max(2,parallel::detectCores()-6)),SIMPLIFY = FALSE) %>% bind_rows
