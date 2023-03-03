@@ -24,9 +24,32 @@ SkylineConvert<- function(x,CollisionEnergy,CompoundClassArg,FragmentationMode,M
 
 blib<-dbConnect(SQLite(),x)
 mods<-dbReadTable(blib, "Modifications")
-modsOutput <- mods %>% group_by(RefSpectraID) %>% summarise(ModString=paste0(mass, "@", position,";",collapse = ""))
+if ("RefSpectraId" %in% colnames(mods)) {
+  id_col <- "RefSpectraId"
+} else if ("RefSpectraID" %in% colnames(mods)) {
+  id_col <- "RefSpectraID"
+} else {
+  stop("Neither RefSpectraId nor RefSpectraID column found in Modifications table.")
+}
+
+modsOutput <- mods %>% group_by((!!sym(id_col))) %>% summarise(ModString=paste0(mass, "@", position,";",collapse = ""))
 RefSpectraPeaks<-dbReadTable(blib, "RefSpectraPeaks")
-allmz<-lapply(RefSpectraPeaks$peakMZ, function(x) {readBin(memDecompress(unlist(x),'g'), double(), 200)})
+
+read_peak_mz <- function(x) {
+  # try to read compressed data
+  mZ <- try(readBin(memDecompress(as.raw(x),'g'), double(), length(x)), TRUE)
+  
+  # if reading compressed data fails, try to read uncompressed data
+  if (!is.numeric(mZ)){
+    mZ <- try(readBin(as.raw(x), double(), length(x)), FALSE)
+  }
+  
+  return(mZ)
+}
+
+# apply the 'read_peak_mz' function to the 'peakMZ' column
+allmz <- lapply(RefSpectraPeaks$peakMZ, read_peak_mz)
+
 allint<- lapply(RefSpectraPeaks$peakIntensity, function(x) {readBin(as.raw(unlist(x)),numeric(), n=200, size = 4)})
 mzinttable <- lapply(seq(1,length(allmz), by = 1), function(x) {bind_cols(masses=allmz[[x]], int=allint[[x]])})
 
@@ -38,8 +61,8 @@ mzinttable<-lapply(seq(1,length(allmz), by =1), function(x) {OrganizePeaks(mzint
 
 SpectraTable<-dbReadTable(blib, "RefSpectra")
 
-allmzpacked<-lapply(mzinttable, function(x){(packBits(numToBits(unlist(x$masses))))})
-allintpacked<-lapply(mzinttable, function(x){(packBits(numToBits(unlist(x$int))))})
+allmzpacked<-lapply(mzinttable, function(x){packBits(numToBits(unlist(x$masses)))})
+allintpacked<-lapply(mzinttable, function(x){packBits(numToBits(unlist(x$int)))})
 
 
 
@@ -51,22 +74,20 @@ if(length(massOffset) != 0){
   
   joined$massOffsetTag<- ""
   joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("massOffset:",joined$massOffset[!is.na(joined$massOffset)])
-  Tags<-paste0(joined$massOffsetTag," mods:",modsOutput$ModString," ", "ions:")
+  Tags<-paste0("mods:",modsOutput$ModString," ",joined$massOffsetTag)
 }
 else {
-  Tags<-paste0("mods:", modsOutput$ModString, " ", "ions:")
-
+  Tags<-paste0("mods:", modsOutput$ModString)
 }
 
-  # Handle mapping of compound class:
-  mappedCompoundClasses = ""
-  if(length(CompoundClassArg) != 0)
-  {
+# Handle mapping of compound class:
+mappedCompoundClasses = ""
+if(length(CompoundClassArg) != 0)
+{
   seqCharge <- data.frame(Sequence=SpectraTable$peptideSeq, charge =SpectraTable$precursorCharge, mZ= SpectraTable$precursorMZ )
    joined <-dplyr::left_join(seqCharge, read.csv(CompoundClassArg$datapath),by = "Sequence")
    mappedCompoundClasses<-joined$CompoundClass
-  }
-
+}
 
 
 MasterCompoundTable <- data.table(
@@ -144,9 +165,3 @@ dbDisconnect(conn4)
 
 dbDisconnect(conn4)
 }
-
-
-
-
-
-
