@@ -54,7 +54,7 @@ if(grepl("msp", tolower(fileType))) {
         Lib<-LibraryRead
        
          resultsTable<- SpXLibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
-                         CollisionEnergy=CollisionEnergy,
+                         CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                          Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
                          cutoff=cutoff, massOffset = massOffset,  IonTypes=IonTypes)
       
@@ -81,7 +81,7 @@ if(grepl("msp", tolower(fileType))) {
       #Lib<-""
       Lib<-fread(z,skip = x-1, nrows = (y-x), blank.lines.skip=FALSE, sep = "\n",  header = FALSE )
       SpXLibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
-                       CollisionEnergy=CollisionEnergy,
+                       CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                        Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
                        cutoff=cutoff, massOffset = massOffset,  IonTypes=IonTypes)
     },
@@ -98,7 +98,7 @@ if(grepl("msp", tolower(fileType))) {
        LibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
                      CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                      Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
-                     cutoff=cutoff,massOffset=NULL, IonTypes=IonTypes)
+                     cutoff=cutoff,massOffset=massOffset, IonTypes=IonTypes)
      },
      x=NamesListX, y=NamesListY, z=LibraryPath,
      BPPARAM=SnowParam(workers = max(2,parallel::detectCores()-6)),SIMPLIFY = FALSE) %>% bind_rows
@@ -191,7 +191,7 @@ if(grepl("msp", tolower(fileType))) {
    if( fileType == "Skyline") {
     source("~/Repos/MSPtoDB/lib/SkylineConvert.R")
      LibraryPath<-Library$datapath
-SkylineConvert(x=LibraryPath,CollisionEnergy=CollisionEnergy,FragmentationMode=FragmentationMode,MassAnalyzer=MassAnalyzer,topX=topX,cutoff=cutoff, Filter=Filter,massOffset=massOffset, DBoutput=DBoutput)
+SkylineConvert(x=LibraryPath,CollisionEnergy=CollisionEnergy,CompoundClassArg=CompoundClass,FragmentationMode=FragmentationMode,MassAnalyzer=MassAnalyzer,topX=topX,cutoff=cutoff, Filter=Filter,massOffset=massOffset, DBoutput=DBoutput)
 
   }
 }
