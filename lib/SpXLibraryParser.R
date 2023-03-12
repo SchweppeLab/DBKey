@@ -165,8 +165,7 @@ MonoisotopicMass <- function(formula = list(), isotopes = list(), charge = 0) {
 
 SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClassArg,
                              Filter=TRUE, TMTPro, Source, topX=0, cutoff=0,massOffset=NULL, IonTypes=NULL) {
-  
-  
+
   firstName<-grep("Name", Library[1:100])[1]
   Library<-Library[firstName:length(Library)]
   Library<-gsub("FullName: ", "", Library, fixed = TRUE)
@@ -188,28 +187,32 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   }
   Mods<-sapply(AltComments,stringFinder)
   unimodTable <- read.csv("~/Repos/MSPtoDB/unimod_custom.csv")
-  unimodTable$mod <- paste("\\b",unimodTable$mod,"\\b", sep="") #Add word boundaries to treat as regex for exact match
+  #unimodTable$mod <- paste("\\b",unimodTable$mod,"\\b", sep="") #Add word boundaries to treat as regex for exact match
   modforprecursor<-list()
   modparser <- function(x) { #Function takes in a single full ModString
-    remove_modstring<-str_split(x,"/",simplify = T)[,-1] #Remove the peptide sequence and "ModString=" content
-    remove_modstring<-str_split(remove_modstring,"/",simplify = T)[,1] #remove the terminal charge "/2"
-    
-    if(nchar(remove_modstring)[1]>=1){
-      out<-str_split(remove_modstring,",",simplify = T)
-      #out<-str_split(out,"@")
-      mods<-as.data.frame(out)
-      mod<-mods[,3]
-      mod<-stri_replace_all_regex(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
-      mod<-trimws(mod)
-      modforprecursor<<-append(modforprecursor, list(mod))
-      pos<-str_split(mods[,1], "[[:alpha:]]",simplify = T)
-      pos[pos<=0 & pos!=""] <- 0
-      returnstring<-pos
-      returnstring[returnstring!=""] <- paste0(mod[returnstring!=""],"@",returnstring[returnstring!=""],";", collapse = "")
-      returnstring<-trimws(returnstring,c("right"),";")
-      returnstring<-trimws(returnstring,c("right")," ")
-    } else {
+    if(!grepl("Mods=0",x)){
+      remove_modstring<-str_split(x,"/",simplify = T)[,-1] #Remove the peptide sequence and "ModString=" content
+      remove_modstring<-str_split(remove_modstring,"/",simplify = T)[,1] #remove the terminal charge "/2"
+      
+      if(nchar(remove_modstring)[1]>=1){
+        out<-str_split(remove_modstring,",",simplify = T)
+        #out<-str_split(out,"@")
+        mods<-as.data.frame(out)
+        mod<-mods[,3]
+        mod<-stri_replace_all_regex(mod, unimodTable$mod, as.character(unimodTable$massshift), vectorize_all = F)
+        mod<-trimws(mod)
+        modforprecursor<<-append(modforprecursor, list(mod))
+        pos<-str_split(mods[,1], "[[:alpha:]]",simplify = T)
+        pos[pos<=0 & pos!=""] <- 0
+        returnstring<-pos
+        returnstring[returnstring!=""] <- paste0(mod[returnstring!=""],"@",returnstring[returnstring!=""],";", collapse = "")
+        returnstring<-trimws(returnstring,c("right"),";")
+        returnstring<-trimws(returnstring,c("right")," ")
+      }
+    }
+    else {
       returnstring<-""
+      modforprecursor<<-append(modforprecursor, list(0))
     }
     return(returnstring[[1]])
   }
@@ -224,7 +227,8 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   
   
   getFrag<- function(x){
-    match<- unique(stri_extract_all_fixed(x, c("CID","HCD"), simplify = TRUE, omit_no_match = T))
+    match<- unique(stri_extract_all_regex(x, c("CID|HCD"), simplify = TRUE, omit_no_match = T))
+    match<-match[match!=""]
     if(length(match)==2){
       return(as.character(match[1]))
     } else {
@@ -232,10 +236,10 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
     }
   }
   
-  if(FragmentationMode== "Read From file"){
-    getFrag(HeaderLists[1:100])
+  FragmentationMode<- if(FragmentationMode== "Read From file"){
+    getFrag(HeaderLists)
   }else{
-    FragmentationMods=FragmentationMode }
+    FragmentationMode }
   
   
   
@@ -243,8 +247,8 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
     
     CE<-x[stri_detect_fixed(x, "Collision")]
     CE<-gsub("_", "", CE)
-    CE<- stri_extract_first_regex(CE,"Collisionenergy=[^/d]{2,4}")
-    CE<- gsub("Collisionenergy=", "", CE)
+    CE<- stri_extract_first_regex(CE,"CollisionEnergy=[^/d]{2,4}")
+    CE<- gsub("CollisionEnergy=", "", CE)
     if(length(CE)==0) {
       stop("Unable to determine Collision Energies from file, please specify")
     } else{
@@ -278,6 +282,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   rm(HeaderLists)
   
   PeakLists<-mapply(function(x) {str_split(PeakLists[[x]], "\\t",simplify = TRUE)}, x = seq(from=1,to=length(PeakLists), by=1))
+  PeakLists <- lapply(PeakLists, function(x) { x[,1:3]})
   PeakLists <- do.call("rbind", PeakLists)
   
   dt<-data.table(PeakLists)
@@ -287,8 +292,10 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   dt$int<-as.numeric(dt$int)
   
   rm(PeakLists)
-  dt$annotations[grepl("i|m", dt$annotations)] <- "?"
-  dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
+  dt$annotations <- str_split(dt$annotations, "/", simplify = T)[,1]
+  dt$annotations[grepl("i|m|I", dt$annotations)] <- "?"
+  #dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
+  #dt$annotations<- gsub( "[[:upper:]]","",dt$annotations, perl = TRUE )
   dt$annotations[grepl("-", dt$annotations)] <- "?"
   dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
   
