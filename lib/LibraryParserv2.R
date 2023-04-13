@@ -181,24 +181,41 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   Comments<-HeaderLists[which(stri_detect_fixed(HeaderLists,"Comment: "))]
   AltComments <- str_split(Comments, " (?=\\w+=)")
 
+  #Keep track of voting to see if we're in a Thermo converted prosit output, or a normal prosit output
+  #prosit
+  count_ModString <- 0
+  #thermo converted
+  count_mods <- 0
+
   stringFinder <- function(x)
   {
     match <- stri_detect_fixed(x, "ModString")
     if(any(match))
     {
+      count_ModString<<-count_ModString+1
       return(x[match])
     }
     else
     {
+      count_mods<<-count_mods+1
       return(x[which(stri_detect_fixed(x, "mods"))])
     }
   }
   Mods<-sapply(AltComments,stringFinder)
   
+
+  #Now check the votes, which will tell us if we need to handle the modification position adjustment
+  thermo<-FALSE
+  if(count_mods>count_ModString)
+  {
+    thermo<-TRUE
+  }
+
   unimodTable <- read.csv("~/Repos/MSPtoDB/unimod_custom.csv")
-  unimodTable$mod <- paste("\\b",unimodTable$mod,"\\b", sep="") #Add word boundaries to treat as regex for exact match
+  unimodTable$mod <- str_escape(unimodTable$mod) #Ensure that characters won't interfere with regex replacement
+  unimodTable$mod <- paste0("^", unimodTable$mod, "$") #Add start and end boundaries to treat as regex for exact match
   modforprecursor<-list()
-  modparser <- function(x) { #Function takes in a single full ModString
+  modparser <- function(x, dontAdjustPosition) { #Function takes in a single full ModString and a bool to tell us if we must modify the position of the mods
     remove_modstring<-str_split(x,"//",simplify = T)[,2] #Remove the peptide sequence and "ModString=" content
     remove_modstring<-str_split(remove_modstring,"/",simplify = T)[,1] #remove the terminal charge "/2"
 
@@ -214,15 +231,15 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
       number_cols<-min(2,ncol(split_positions))
       pos<-split_positions[,number_cols]
       pos<-str_split(pos, "/", simplify = T)[,1]
-      if(number_cols<2)
+      if(number_cols==2 && dontAdjustPosition==FALSE)
       {
         # Use regular expression to extract the first continuous integer from the input
         for(i in 1:length(pos))
         {
           int_string <- regmatches(pos[i], gregexpr("[[:digit:]]+", pos[i]))[[1]]
           int_number <- as.numeric(int_string)
-          # Decrement the number
-          int_number <- int_number - 1
+          # Increment the number
+          int_number <- int_number + 1
 
           # Replace the original integer with the decremented number in the input string
           pos[i] <- sub(int_string, as.character(int_number), pos[i], fixed=TRUE)
@@ -240,7 +257,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
     return(returnstring[[1]])
   }
 
-  Modsoutput<-sapply(Mods,modparser)
+  Modsoutput<-sapply(Mods,modparser,dontAdjustPosition=thermo)
   Modsoutput<-str_replace(Modsoutput," ","")
   has_rt<-sum(sapply(AltComments, function(x) {  return(stri_detect_regex(x,"RetentionTime|iRT"))})) # Check to see if iRT or RetentionTime is present.
   
