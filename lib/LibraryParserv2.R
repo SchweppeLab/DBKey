@@ -165,7 +165,7 @@ MonoisotopicMass <- function(formula = list(), isotopes = list(), charge = 0) {
 }
 
 LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClassArg,
-                          Filter=FALSE, TMTPro=TMTPro, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
+                          Filter=FALSE, TMTPro=TMTPro, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA, deltaFragment=FALSE, oldMod= NULL, newMod= NULL) {
 
   # firstName<-grep("Name", Library[1:100])[1]
   # Library<-Library[firstName:length(Library)]
@@ -282,12 +282,10 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
     }
   }
   
-  if(FragmentationMode== "Read From file")
-  {
+  if(FragmentationMode== "Read From file") {
     FragmentationMode=getFrag(HeaderLists[1:100])
   }
-  else
-  {
+  else {
     FragmentationMode=FragmentationMode
   }
     
@@ -358,15 +356,49 @@ rm(HeaderLists)
     rm(PeakDT)
 
 
-    blobMass<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,1]))))})
+adjustFragments<- function(FragTable, oldMod, newMod, modsInput)   {
+  vec<- FragTable$annotations
+    first_parts <- gsub("^(\\D).*", "\\1", vec)
+  second_parts <- gsub("^\\D*(\\d.*)", "\\1", vec)
+  annotationTable <- bind_cols(first_parts, str_split(second_parts, "\\^", simplify = T))
+  names(annotationTable) <- c("ion", "pos", "z")
+  annotationTable$z[annotationTable$z == ""] <-1
+  annotationTable$pos <- as.numeric(annotationTable$pos)
+  annotationTable$z <- as.numeric(annotationTable$z)
+  if (grepl(";", modsInput)) {
+  modtable <- data.frame(matrix(unlist(strsplit(modsInput, "@|;")), nrow=2, byrow=TRUE))
+  } else {
+    modtable<- data.frame(do.call(rbind, strsplit(modsInput, "@")), stringsAsFactors = FALSE)
+  }
+  modtable$X2 <- as.numeric(modtable$X2)
+  modtable$X1 <- ifelse(modtable$X1 == oldMod, newMod-oldMod, oldMod)
+  
+  
+  for (i in 1:length(modtable$X1)) {
+    FragTable$masses <- ifelse(annotationTable$ion == "b" & annotationTable$pos >= modtable[i,2], modtable[i,1]/annotationTable$z + FragTable$masses, FragTable$masses)
+    FragTable$masses <- ifelse(annotationTable$ion == "y" & annotationTable$pos < modtable[i,2], modtable[i,1]/annotationTable$z + FragTable$masses, FragTable$masses)
+  }
+  return(FragTable)
+}
+
+if(deltaFragment) {
+  for (i in 1:length(PeakDTOrganize)) { 
+    if(Modsoutput[i] != "") {
+      PeakDTOrganize<- adjustFragments(PeakDTOrganize[i], oldMod, newMod, Modsoutput[i])
+    }
+  }
+}
+   
+   
+   blobMass<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,1]))))})
     blobInt<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,2]))))})
 
     PeakAnnotations<-lapply(PeakDTOrganize, function(x) {
       paste(x$annotations,collapse=";")
     })
     
-    
-   
+    # bionshift <- if mod position < b ion-number then add mod 
+    # yionshift <- if mod position > y ion-number then add mod 
    
 
   if(length(massOffset) != 0)
