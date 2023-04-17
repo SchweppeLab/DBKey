@@ -69,6 +69,7 @@ body <- dashboardBody(
                 "New modification mass",0
               )),
               downloadButton(label = "Generate and Download .db", "downloadData"),
+              textOutput("txt"),
               add_busy_spinner(spin = "fading-circle", margins = c(80, 300), position='top-left',height="200px",width="200px")
               
             )
@@ -111,10 +112,23 @@ server <- function(input, output) {
     toggle(id="oldMod", condition = input$AdjustFragments)})
   observe({
     toggle(id="newMod", condition = input$AdjustFragments)})
+  observeEvent(input$downloadButton, {
+    # get a list of all input names
+    input_names <- names(input)
+    
+    # create a list of all input values
+    input_values <- lapply(input_names, function(x) {
+      input[[x]]
+    })
+    
+    # print the list of input values
+    print(input_values)
+  })
   output$downloadData <- downloadHandler(
    # filename = function() { paste('library-',format(Sys.time(), "%Y-%m-%d_%I-%p"),'.db',sep='') },
     filename = function() { paste0(gsub("[^.]+$", "", Library()$name), 'db') },
      content= function(x) {
+      
        Y<-isolate({
          massOff<-input$massOffset
          top<-input$topX
@@ -126,14 +140,30 @@ server <- function(input, output) {
          CollisionEnergy = (input$CeInput)
          CompoundClassArg = input$CompClassInput
          TMTPro = (input$TMTInput)
+         adjustfragments = input$AdjustFragments
+         oldmod <- input$oldMod
+         newmod <- input$newMod
          })
         DBbuilder(Library=Library(), FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer(), CollisionEnergy=CollisionEnergy, CompoundClass=CompoundClassArg,
                            Filter=Filter, DBoutput=x, topX=top, TMTPro = FALSE, cutoff=cutoff, massOffset=massOff, IonTypes=IonTypes,deltaFragment=adjustfragments, oldMod=oldmod, newMod=newmod)
+      
    
     } )
-  output$txt <-  renderText({
-    input$IonTypes
-  })
+  # output$txt <-  renderText({
+  #   paste("MassAnalyzer:", input$MassAnalyzerInput,
+  #   "Mass Offset:", input$massOffset,
+  #   "Cutoff:", input$cutoff,
+  #   "TopX:", input$topX,
+  #   "Filter:", input$Filter,
+  #   "Ions:", input$FragInput,
+  #   "CE:", input$CeInput,
+  #   "Library:", input$LibInput[1],
+  #   "CompClass:", input$CompClassInput,
+  #   "Adjust Fragemnts:", input$AdjustFragments,
+  #   "old mod", input$oldMod,
+  #   "new mod:", input$newMod)
+  #   
+  # })
     
 }
 

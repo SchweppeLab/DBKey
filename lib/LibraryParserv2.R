@@ -165,7 +165,7 @@ MonoisotopicMass <- function(formula = list(), isotopes = list(), charge = 0) {
 }
 
 LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClassArg=NULL,
-                          Filter=FALSE, TMTPro=TMTPro, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NULL, deltaFragment=FALSE, oldMod= 0, newMod= 0) {
+                          Filter=FALSE, TMTPro=TMTPro, Source, topX=0, cutoff=0,massOffset=NULL, IonTypes=NULL, deltaFragment=FALSE, oldMod= 0, newMod= 0) {
 
   # firstName<-grep("Name", Library[1:100])[1]
   # Library<-Library[firstName:length(Library)]
@@ -383,6 +383,7 @@ adjustFragments<- function(FragTable, oldMod, newMod, modsInput)   {
     modtable<- data.frame(do.call(rbind, strsplit(modsInput, "@")), stringsAsFactors = FALSE)
   }
   modtable$X2 <- as.numeric(modtable$X2)
+  modtable<-modtable[modtable$X1== oldMod,]
   modtable$X1 <- ifelse(modtable$X1 == oldMod, newMod-oldMod, oldMod)
   
   

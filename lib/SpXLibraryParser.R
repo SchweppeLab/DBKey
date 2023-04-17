@@ -302,7 +302,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   dt$annotations[grepl("i|m|I", dt$annotations)] <- "?"
   #dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
   #dt$annotations<- gsub( "[[:upper:]]","",dt$annotations, perl = TRUE )
-  dt$annotations[grepl("-", dt$annotations)] <- "?"
+  dt$annotations[grepl("-|+18", dt$annotations)] <- "?"
   dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
   
   
@@ -333,13 +333,15 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
       modtable<- data.frame(do.call(rbind, strsplit(modsInput, "@")), stringsAsFactors = FALSE)
     }
     modtable$X2 <- as.numeric(modtable$X2)
-    modtable$X1 <- ifelse(modtable$X1 == oldMod, newMod-oldMod, oldMod)
+    
+    modtable$X1 <- ifelse(modtable$X1 == oldMod, newMod-oldMod, 0)
     
     
     for (i in 1:length(modtable$X1)) {
       FragTable$masses <- ifelse(annotationTable$ion == "b" & annotationTable$pos >= modtable[i,2], modtable[i,1]/annotationTable$z + FragTable$masses, FragTable$masses)
       FragTable$masses <- ifelse(annotationTable$ion == "y" & annotationTable$pos < modtable[i,2], modtable[i,1]/annotationTable$z + FragTable$masses, FragTable$masses)
     }
+    FragTable<- setkey(FragTable,masses)
     return(FragTable)
   }
   

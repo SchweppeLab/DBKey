@@ -83,7 +83,7 @@ if(grepl("msp", tolower(fileType))) {
       SpXLibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
                        CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                        Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
-                       cutoff=cutoff, massOffset = massOffset,  IonTypes=IonTypes)
+                       cutoff=cutoff, massOffset = massOffset,  IonTypes=IonTypes,deltaFragment=deltaFragment, oldMod= oldMod, newMod= newMod)
     },
     x=NamesListX, y=NamesListY, z=LibraryPath,
     BPPARAM=SnowParam(workers = max(2,parallel::detectCores()-6)),SIMPLIFY = FALSE) %>% bind_rows
