@@ -164,8 +164,8 @@ MonoisotopicMass <- function(formula = list(), isotopes = list(), charge = 0) {
   
 }
 
-LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClassArg,
-                          Filter=FALSE, TMTPro=TMTPro, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA, deltaFragment=FALSE, oldMod= NULL, newMod= NULL) {
+LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClassArg=NULL,
+                          Filter=FALSE, TMTPro=TMTPro, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NULL, deltaFragment=FALSE, oldMod= 0, newMod= 0) {
 
   # firstName<-grep("Name", Library[1:100])[1]
   # Library<-Library[firstName:length(Library)]
@@ -323,6 +323,12 @@ if(CollisionEnergy== "Read from file")
   NumPeaks<-(c(nameindexes[-1], length(Library)+1) - peakindexes)-1
   Charge<-as.numeric(str_sub(Names,-1 ))
   sequence<- gsub('.{2}$', '',Names)
+  if(deltaFragment){
+    for (i in seq_along(modforprecursor)) {
+      
+      modforprecursor[[i]]<-gsub(oldMod, newMod, modforprecursor[[i]])
+    }
+  }
     totalprecursormod<- lapply(modforprecursor, function(x) {sum(as.numeric(x))})
   totalprecursormod[is.na(totalprecursormod)] <- 0
   PrecursorMasses<- mapply(function(x,y,z) { 
@@ -352,7 +358,7 @@ rm(HeaderLists)
     PeakDT<-mapply(function(x,y) {dt[x:y]},
           x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
 
-    PeakDTOrganize<- lapply(PeakDT, function(x){OrgPeakCmp(x,topX,cutoff,IonTypes)})
+    PeakDTOrganize<- lapply(PeakDT, function(x){OrgPeakCmp(x,topX=topX,cutoff=cutoff,IonTypes=IonTypes)})
     rm(PeakDT)
 
 
@@ -360,8 +366,14 @@ adjustFragments<- function(FragTable, oldMod, newMod, modsInput)   {
   vec<- FragTable$annotations
     first_parts <- gsub("^(\\D).*", "\\1", vec)
   second_parts <- gsub("^\\D*(\\d.*)", "\\1", vec)
-  annotationTable <- bind_cols(first_parts, str_split(second_parts, "\\^", simplify = T))
-  names(annotationTable) <- c("ion", "pos", "z")
+  annotationTable <- as.data.frame(cbind(first_parts, str_split(second_parts, "\\^", simplify = T)))
+  if (length(annotationTable)==3){
+    names(annotationTable) <- c("ion", "pos", "z")
+  } else{
+    names(annotationTable) <- c("ion", "pos")
+    annotationTable$z <- 1
+  }
+  
   annotationTable$z[annotationTable$z == ""] <-1
   annotationTable$pos <- as.numeric(annotationTable$pos)
   annotationTable$z <- as.numeric(annotationTable$z)
@@ -384,9 +396,18 @@ adjustFragments<- function(FragTable, oldMod, newMod, modsInput)   {
 if(deltaFragment) {
   for (i in 1:length(PeakDTOrganize)) { 
     if(Modsoutput[i] != "") {
-      PeakDTOrganize<- adjustFragments(PeakDTOrganize[i], oldMod, newMod, Modsoutput[i])
+      
+      tryCatch({
+        PeakDTOrganize[[i]]<- adjustFragments(PeakDTOrganize[[i]], oldMod, newMod, Modsoutput[i])
+        Modsoutput[[i]] <- gsub(oldMod, newMod, Modsoutput[[i]])
+      }, error = function(e){
+        print(paste0("Error on loop ", i))
+        print(e)
+      })
     }
+    
   }
+  
 }
    
    
@@ -401,8 +422,7 @@ if(deltaFragment) {
     # yionshift <- if mod position > y ion-number then add mod 
    
 
-  if(length(massOffset) != 0)
-  {
+  if(length(massOffset) != 0) {
    seqCharge <- data.frame(tstrsplit(Names, "/"))
    seqCharge$mZ <- PrecursorMasses
    names(seqCharge) <- c("Sequence", "charge", "mZ")
@@ -410,9 +430,7 @@ if(deltaFragment) {
    joined$massOffsetTag<- ""
    joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("massOffset:",joined$massOffset[!is.na(joined$massOffset)])
     Tags<-paste0(joined$massOffsetTag," mods:",Modsoutput," ", "ions:", PeakAnnotations )
-  }
-  else
-  {
+  } else {
     Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)  
   }
 
