@@ -383,14 +383,14 @@ adjustFragments<- function(FragTable, oldMod, newMod, modsInput)   {
     modtable<- data.frame(do.call(rbind, strsplit(modsInput, "@")), stringsAsFactors = FALSE)
   }
   modtable$X2 <- as.numeric(modtable$X2)
-  modtable<-modtable[modtable$X1== oldMod,]
-  modtable$X1 <- ifelse(modtable$X1 == oldMod, newMod-oldMod, oldMod)
+  modtable$X1 <- ifelse(modtable$X1 == oldMod, newMod-oldMod, 0)
   
   
   for (i in 1:length(modtable$X1)) {
     FragTable$masses <- ifelse(annotationTable$ion == "b" & annotationTable$pos >= modtable[i,2], modtable[i,1]/annotationTable$z + FragTable$masses, FragTable$masses)
     FragTable$masses <- ifelse(annotationTable$ion == "y" & annotationTable$pos < modtable[i,2], modtable[i,1]/annotationTable$z + FragTable$masses, FragTable$masses)
   }
+  FragTable<- setkey(FragTable,masses)
   return(FragTable)
 }
 

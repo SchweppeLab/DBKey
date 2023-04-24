@@ -10,7 +10,7 @@ OrganizePeaks<- function(x,precursor,z,topX,cutoff,IonTypes,TMTPro) {
   dt<-x[which(x$int >0 ),]
   if(!is.null(IonTypes)) {
     dt<-dt[(substr(dt$annotations,1,1) %in% IonTypes)]
-    
+    dt<-dt[abs(as.numeric(dt$fragppmerror))<=.1,]
   }
   if(topX < length(dt$masses)) {
     peakNum <- min(topX, length(dt$masses))
@@ -22,6 +22,7 @@ OrganizePeaks<- function(x,precursor,z,topX,cutoff,IonTypes,TMTPro) {
     maxPeak<-max(dt$int)
     dt<-dt[(dt$int/maxPeak)*100>cutoff,]
   }
+  
 
   
   dt<-setkey(dt, masses)
@@ -298,6 +299,10 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   dt$int<-as.numeric(dt$int)
   
   rm(PeakLists)
+  dt$annotations<-gsub("\\[|\\]","",dt$annotations)
+  dt$fragppmerror<-str_split(str_split(dt$annotations, "/", simplify = T)[,2], ",", simplify = T)[,1]
+  dt$fragppmerror[dt$fragppmerror ==""] <- 1
+  dt$fragppmerror<-as.numeric(dt$fragppmerror)
   dt$annotations <- str_split(dt$annotations, "/", simplify = T)[,1]
   dt$annotations[grepl("i|m|I", dt$annotations)] <- "?"
   #dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
@@ -307,10 +312,14 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   
   
   
+  
+  
+  
+  
   PeakDT<-mapply(function(x,y) {dt[x:y]},
                  x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
 
-  PeakDTOrganize<- lapply(seq(1,length(PeakDT), by=1), function(x){OrgPeakCmp(PeakDT[[x]], PrecursorMasses[x], Charge[x], topX,cutoff,IonTypes,TMTPro)})
+  PeakDTOrganize<- lapply(seq(1,length(PeakDT), by=1), function(x){OrgPeakCmp(PeakDT[[x]], PrecursorMasses[x], Charge[x], topX,cutoff,IonTypes)})
   rm(PeakDT)
   adjustFragments<- function(FragTable, oldMod, newMod, modsInput)   {
     vec<- FragTable$annotations
@@ -334,7 +343,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
     }
     modtable$X2 <- as.numeric(modtable$X2)
     
-    modtable$X1 <- ifelse(modtable$X1 == oldMod, newMod-oldMod, 0)
+    modtable$X1 <- ifelse(modtable$X1 == oldMod, as.numeric(newMod)-as.numeric(oldMod), 0)
     
     
     for (i in 1:length(modtable$X1)) {
