@@ -307,7 +307,8 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   dt$annotations[grepl("i|m|I", dt$annotations)] <- "?"
   #dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
   #dt$annotations<- gsub( "[[:upper:]]","",dt$annotations, perl = TRUE )
-  dt$annotations[grepl("-|+18", dt$annotations)] <- "?"
+  dt$annotations[grepl("+18", dt$annotations)] <- "?"
+  dt$annotations<-gsub("-\\d+","",dt$annotations)
   dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
   
   
@@ -337,7 +338,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
     annotationTable$pos <- as.numeric(annotationTable$pos)
     annotationTable$z <- as.numeric(annotationTable$z)
     if (grepl(";", modsInput)) {
-      modtable <- data.frame(matrix(unlist(strsplit(modsInput, "@|;")), nrow=2, byrow=TRUE))
+      modtable <- data.frame(matrix(unlist(strsplit(modsInput, "@|;")), ncol = 2, byrow=TRUE))
     } else {
       modtable<- data.frame(do.call(rbind, strsplit(modsInput, "@")), stringsAsFactors = FALSE)
     }
