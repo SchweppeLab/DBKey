@@ -30,8 +30,10 @@ if(grepl("msp", tolower(fileType))) {
   LibraryRead = vroom(LibraryPath, col_names = "Lib", delim = "\n",skip_empty_rows = FALSE)
    LibraryRead<-LibraryRead$Lib
   
-  
-    chunksize<-min(length(LibraryRead),500000)
+
+   
+   
+  chunksize<-min(length(LibraryRead),500000)
     
 ## accounting for small libraries
   if(chunksize < 500000){

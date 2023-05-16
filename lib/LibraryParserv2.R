@@ -205,7 +205,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   
 
   #Now check the votes, which will tell us if we need to handle the modification position adjustment
-  thermo<-FALSE
+  #thermo<-FALSE
   if(count_mods>count_ModString)
   {
     thermo<-TRUE
@@ -329,7 +329,7 @@ if(CollisionEnergy== "Read from file")
       modforprecursor[[i]]<-gsub(oldMod, newMod, modforprecursor[[i]])
     }
   }
-    totalprecursormod<- lapply(modforprecursor, function(x) {sum(as.numeric(x))})
+  totalprecursormod<- lapply(modforprecursor, function(x) {sum(as.numeric(x))})
   totalprecursormod[is.na(totalprecursormod)] <- 0
   PrecursorMasses<- mapply(function(x,y,z) { 
     MonoisotopicMass(ConvertPeptide(x), charge = y) + (z/y)}, 
@@ -341,6 +341,27 @@ rm(HeaderLists)
   
   PeakLists <- mapply(function(x) { str_split(PeakLists[[x]], "\\s+", simplify = TRUE)},x = seq(from = 1, to = length(PeakLists), by=1))
 
+  #Check for incorrectly formatted entry
+  PeakListColLength <- lapply(PeakLists, ncol)
+  PeakListsIncorrect <- which(PeakListColLength!=3)
+  
+  if(length(PeakListsIncorrect)>0){
+    
+    for (x in PeakListsIncorrect) {
+      cat("Removing entry: ", Names[x], "\n")
+      PeakLists<- PeakLists[-x]
+      PrecursorMasses <- PrecursorMasses[-x]
+      sequence <- sequence[-x]
+      Charge <- Charge[-x]
+      Names<- Names[-x]
+      RetentionTime <- RetentionTime[-x]
+      Modsoutput <- Modsoutput[-x]
+      
+    }
+    
+  }
+  
+  
   PeakLists <- na.omit(do.call("rbind", PeakLists))
 
   dt<-data.table(PeakLists)
@@ -354,7 +375,8 @@ rm(HeaderLists)
     dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
     dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
   }
-
+  dt$annotations<- gsub( "\"","",dt$annotations, perl = TRUE )
+  
     PeakDT<-mapply(function(x,y) {dt[x:y]},
           x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
 
