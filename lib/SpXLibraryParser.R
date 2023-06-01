@@ -10,7 +10,7 @@ OrganizePeaks<- function(x,precursor,z,topX,cutoff,IonTypes,TMTPro) {
   dt<-x[which(x$int >0 ),]
   if(!is.null(IonTypes)) {
     dt<-dt[(substr(dt$annotations,1,1) %in% IonTypes)]
-    
+    dt<-dt[abs(as.numeric(dt$fragppmerror))<=.1,]
   }
   if(topX < length(dt$masses)) {
     peakNum <- min(topX, length(dt$masses))
@@ -22,6 +22,7 @@ OrganizePeaks<- function(x,precursor,z,topX,cutoff,IonTypes,TMTPro) {
     maxPeak<-max(dt$int)
     dt<-dt[(dt$int/maxPeak)*100>cutoff,]
   }
+  
 
   
   dt<-setkey(dt, masses)
@@ -164,7 +165,7 @@ MonoisotopicMass <- function(formula = list(), isotopes = list(), charge = 0) {
 
 
 SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClassArg,
-                             Filter=TRUE, TMTPro, Source, topX=0, cutoff=0,massOffset=NULL, IonTypes=NULL) {
+                             Filter=TRUE, TMTPro, Source, topX=0, cutoff=0,massOffset=NULL, IonTypes=NULL, deltaFragment=FALSE, oldMod= NULL, newMod= NULL) {
 
   firstName<-grep("Name", Library[1:100])[1]
   Library<-Library[firstName:length(Library)]
@@ -271,7 +272,13 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   Charge<-as.numeric(str_sub(Names,-1 ))
   sequence<- gsub("[^[:alpha:]]", "", Names)
   sequence <- gsub("[[:lower:]]", "", sequence)
-  totalprecursormod<- lapply(modforprecursor, function(x) {sum(as.numeric(x))})
+  if(deltaFragment){
+    for (i in seq_along(modforprecursor)) {
+      
+      modforprecursor[[i]]<-gsub(oldMod, newMod, modforprecursor[[i]])
+    }
+  }
+   totalprecursormod<- lapply(modforprecursor, function(x) {sum(as.numeric(x))})
   totalprecursormod[is.na(totalprecursormod)] <- 0
   PrecursorMasses<- mapply(function(x,y,z) { 
     MonoisotopicMass(ConvertPeptide(x), charge = y) + (z/y)}, 
@@ -292,21 +299,78 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   dt$int<-as.numeric(dt$int)
   
   rm(PeakLists)
+  dt$annotations<-gsub("\\[|\\]","",dt$annotations)
+  dt$fragppmerror<-str_split(str_split(dt$annotations, "/", simplify = T)[,2], ",", simplify = T)[,1]
+  dt$fragppmerror[dt$fragppmerror ==""] <- 1
+  dt$fragppmerror<-as.numeric(dt$fragppmerror)
   dt$annotations <- str_split(dt$annotations, "/", simplify = T)[,1]
   dt$annotations[grepl("i|m|I", dt$annotations)] <- "?"
   #dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
   #dt$annotations<- gsub( "[[:upper:]]","",dt$annotations, perl = TRUE )
-  dt$annotations[grepl("-", dt$annotations)] <- "?"
+  dt$annotations[grepl("+18", dt$annotations)] <- "?"
+  dt$annotations<-gsub("-\\d+","",dt$annotations)
   dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
+  
+  
+  
+  
   
   
   
   PeakDT<-mapply(function(x,y) {dt[x:y]},
                  x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
 
-  PeakDTOrganize<- lapply(seq(1,length(PeakDT), by=1), function(x){OrgPeakCmp(PeakDT[[x]], PrecursorMasses[x], Charge[x], topX,cutoff,IonTypes,TMTPro)})
+  PeakDTOrganize<- lapply(seq(1,length(PeakDT), by=1), function(x){OrgPeakCmp(PeakDT[[x]], PrecursorMasses[x], Charge[x], topX,cutoff,IonTypes)})
   rm(PeakDT)
+  adjustFragments<- function(FragTable, oldMod, newMod, modsInput)   {
+    vec<- FragTable$annotations
+    first_parts <- gsub("^(\\D).*", "\\1", vec)
+    second_parts <- gsub("^\\D*(\\d.*)", "\\1", vec)
+    annotationTable <- as.data.frame(cbind(first_parts, str_split(second_parts, "\\^", simplify = T)))
+    if (length(annotationTable)==3){
+      names(annotationTable) <- c("ion", "pos", "z")
+    } else{
+      names(annotationTable) <- c("ion", "pos")
+      annotationTable$z <- 1
+    }
+    
+    annotationTable$z[annotationTable$z == ""] <-1
+    annotationTable$pos <- as.numeric(annotationTable$pos)
+    annotationTable$z <- as.numeric(annotationTable$z)
+    if (grepl(";", modsInput)) {
+      modtable <- data.frame(matrix(unlist(strsplit(modsInput, "@|;")), ncol = 2, byrow=TRUE))
+    } else {
+      modtable<- data.frame(do.call(rbind, strsplit(modsInput, "@")), stringsAsFactors = FALSE)
+    }
+    modtable$X2 <- as.numeric(modtable$X2)
+    
+    modtable$X1 <- ifelse(modtable$X1 == oldMod, as.numeric(newMod)-as.numeric(oldMod), 0)
+    
+    
+    for (i in 1:length(modtable$X1)) {
+      FragTable$masses <- ifelse(annotationTable$ion == "b" & annotationTable$pos >= modtable[i,2], modtable[i,1]/annotationTable$z + FragTable$masses, FragTable$masses)
+      FragTable$masses <- ifelse(annotationTable$ion == "y" & annotationTable$pos < modtable[i,2], modtable[i,1]/annotationTable$z + FragTable$masses, FragTable$masses)
+    }
+    FragTable<- setkey(FragTable,masses)
+    return(FragTable)
+  }
   
+  if(deltaFragment) {
+    for (i in 1:length(PeakDTOrganize)) { 
+      if(Modsoutput[i] != "") {
+        
+        tryCatch({
+          PeakDTOrganize[[i]]<- adjustFragments(PeakDTOrganize[[i]], oldMod, newMod, Modsoutput[i])
+          Modsoutput[[i]] <- gsub(oldMod, newMod, Modsoutput[[i]])
+        }, error = function(e){
+          print(paste0("Error on loop ", i))
+          print(e)
+        })
+      }
+      
+    }
+    
+  }  
   
   blobMass<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,1]))))})
   blobInt<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,2]))))})

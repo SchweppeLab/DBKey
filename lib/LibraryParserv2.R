@@ -164,8 +164,8 @@ MonoisotopicMass <- function(formula = list(), isotopes = list(), charge = 0) {
   
 }
 
-LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClassArg,
-                          Filter=FALSE, TMTPro=TMTPro, Source, topX=0, cutoff=0,massOffset=NA, IonTypes=NA) {
+LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClassArg=NULL,
+                          Filter=FALSE, TMTPro=TMTPro, Source, topX=0, cutoff=0,massOffset=NULL, IonTypes=NULL, deltaFragment=FALSE, oldMod= 0, newMod= 0) {
 
   # firstName<-grep("Name", Library[1:100])[1]
   # Library<-Library[firstName:length(Library)]
@@ -205,7 +205,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   
 
   #Now check the votes, which will tell us if we need to handle the modification position adjustment
-  thermo<-FALSE
+  #thermo<-FALSE
   if(count_mods>count_ModString)
   {
     thermo<-TRUE
@@ -282,12 +282,10 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
     }
   }
   
-  if(FragmentationMode== "Read From file")
-  {
+  if(FragmentationMode== "Read From file") {
     FragmentationMode=getFrag(HeaderLists[1:100])
   }
-  else
-  {
+  else {
     FragmentationMode=FragmentationMode
   }
     
@@ -325,7 +323,13 @@ if(CollisionEnergy== "Read from file")
   NumPeaks<-(c(nameindexes[-1], length(Library)+1) - peakindexes)-1
   Charge<-as.numeric(str_sub(Names,-1 ))
   sequence<- gsub('.{2}$', '',Names)
-    totalprecursormod<- lapply(modforprecursor, function(x) {sum(as.numeric(x))})
+  if(deltaFragment){
+    for (i in seq_along(modforprecursor)) {
+      
+      modforprecursor[[i]]<-gsub(oldMod, newMod, modforprecursor[[i]])
+    }
+  }
+  totalprecursormod<- lapply(modforprecursor, function(x) {sum(as.numeric(x))})
   totalprecursormod[is.na(totalprecursormod)] <- 0
   PrecursorMasses<- mapply(function(x,y,z) { 
     MonoisotopicMass(ConvertPeptide(x), charge = y) + (z/y)}, 
@@ -337,6 +341,27 @@ rm(HeaderLists)
   
   PeakLists <- mapply(function(x) { str_split(PeakLists[[x]], "\\s+", simplify = TRUE)},x = seq(from = 1, to = length(PeakLists), by=1))
 
+  #Check for incorrectly formatted entry
+  PeakListColLength <- lapply(PeakLists, ncol)
+  PeakListsIncorrect <- which(PeakListColLength!=3)
+  
+  if(length(PeakListsIncorrect)>0){
+    
+    for (x in PeakListsIncorrect) {
+      cat("Removing entry: ", Names[x], "\n")
+      PeakLists<- PeakLists[-x]
+      PrecursorMasses <- PrecursorMasses[-x]
+      sequence <- sequence[-x]
+      Charge <- Charge[-x]
+      Names<- Names[-x]
+      RetentionTime <- RetentionTime[-x]
+      Modsoutput <- Modsoutput[-x]
+      
+    }
+    
+  }
+  
+  
   PeakLists <- na.omit(do.call("rbind", PeakLists))
 
   dt<-data.table(PeakLists)
@@ -350,27 +375,77 @@ rm(HeaderLists)
     dt$annotations<- gsub( "[^//]+$","",dt$annotations, perl = TRUE )
     dt$annotations<- gsub('[^\\^|[:alnum:]]', "", dt$annotations, perl=TRUE)
   }
-
+  dt$annotations<- gsub( "\"","",dt$annotations, perl = TRUE )
+  
     PeakDT<-mapply(function(x,y) {dt[x:y]},
           x= c(0, cumsum(NumPeaks[-length(Names)]))+1 ,y= cumsum(NumPeaks), SIMPLIFY = FALSE)
 
-    PeakDTOrganize<- lapply(PeakDT, function(x){OrgPeakCmp(x,topX,cutoff,IonTypes)})
+    PeakDTOrganize<- lapply(PeakDT, function(x){OrgPeakCmp(x,topX=topX,cutoff=cutoff,IonTypes=IonTypes)})
     rm(PeakDT)
 
 
-    blobMass<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,1]))))})
+adjustFragments<- function(FragTable, oldMod, newMod, modsInput)   {
+  vec<- FragTable$annotations
+    first_parts <- gsub("^(\\D).*", "\\1", vec)
+  second_parts <- gsub("^\\D*(\\d.*)", "\\1", vec)
+  annotationTable <- as.data.frame(cbind(first_parts, str_split(second_parts, "\\^", simplify = T)))
+  if (length(annotationTable)==3){
+    names(annotationTable) <- c("ion", "pos", "z")
+  } else{
+    names(annotationTable) <- c("ion", "pos")
+    annotationTable$z <- 1
+  }
+  
+  annotationTable$z[annotationTable$z == ""] <-1
+  annotationTable$pos <- as.numeric(annotationTable$pos)
+  annotationTable$z <- as.numeric(annotationTable$z)
+  if (grepl(";", modsInput)) {
+  modtable <- data.frame(matrix(unlist(strsplit(modsInput, "@|;")), nrow=2, byrow=TRUE))
+  } else {
+    modtable<- data.frame(do.call(rbind, strsplit(modsInput, "@")), stringsAsFactors = FALSE)
+  }
+  modtable$X2 <- as.numeric(modtable$X2)
+  modtable$X1 <- ifelse(modtable$X1 == oldMod, newMod-oldMod, 0)
+  
+  
+  for (i in 1:length(modtable$X1)) {
+    FragTable$masses <- ifelse(annotationTable$ion == "b" & annotationTable$pos >= modtable[i,2], modtable[i,1]/annotationTable$z + FragTable$masses, FragTable$masses)
+    FragTable$masses <- ifelse(annotationTable$ion == "y" & annotationTable$pos < modtable[i,2], modtable[i,1]/annotationTable$z + FragTable$masses, FragTable$masses)
+  }
+  FragTable<- setkey(FragTable,masses)
+  return(FragTable)
+}
+
+if(deltaFragment) {
+  for (i in 1:length(PeakDTOrganize)) { 
+    if(Modsoutput[i] != "") {
+      
+      tryCatch({
+        PeakDTOrganize[[i]]<- adjustFragments(PeakDTOrganize[[i]], oldMod, newMod, Modsoutput[i])
+        Modsoutput[[i]] <- gsub(oldMod, newMod, Modsoutput[[i]])
+      }, error = function(e){
+        print(paste0("Error on loop ", i))
+        print(e)
+      })
+    }
+    
+  }
+  
+}
+   
+   
+   blobMass<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,1]))))})
     blobInt<-lapply(PeakDTOrganize, function(x) {(packBits(numToBits(unlist(x[,2]))))})
 
     PeakAnnotations<-lapply(PeakDTOrganize, function(x) {
       paste(x$annotations,collapse=";")
     })
     
-    
-   
+    # bionshift <- if mod position < b ion-number then add mod 
+    # yionshift <- if mod position > y ion-number then add mod 
    
 
-  if(length(massOffset) != 0)
-  {
+  if(length(massOffset) != 0) {
    seqCharge <- data.frame(tstrsplit(Names, "/"))
    seqCharge$mZ <- PrecursorMasses
    names(seqCharge) <- c("Sequence", "charge", "mZ")
@@ -378,9 +453,7 @@ rm(HeaderLists)
    joined$massOffsetTag<- ""
    joined$massOffsetTag[!is.na(joined$massOffset)] <- paste0("massOffset:",joined$massOffset[!is.na(joined$massOffset)])
     Tags<-paste0(joined$massOffsetTag," mods:",Modsoutput," ", "ions:", PeakAnnotations )
-  }
-  else
-  {
+  } else {
     Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)  
   }
 

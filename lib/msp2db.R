@@ -12,7 +12,7 @@ library(data.table)
 
 # main function of shiny app
 DBbuilder<- function(Library, FragmentationMode, MassAnalyzer, CollisionEnergy, CompoundClass,
-                     Filter, DBoutput, topX, cutoff, TMTPro, massOffset, IonTypes) {
+                     Filter, DBoutput, topX, cutoff, TMTPro, massOffset, IonTypes,deltaFragment, oldMod, newMod) {
 #Get file type from input file
 fileType<- (Library$name[1])
 if(grepl("msp", tolower(fileType))) {
@@ -30,8 +30,10 @@ if(grepl("msp", tolower(fileType))) {
   LibraryRead = vroom(LibraryPath, col_names = "Lib", delim = "\n",skip_empty_rows = FALSE)
    LibraryRead<-LibraryRead$Lib
   
-  
-    chunksize<-min(length(LibraryRead),500000)
+
+   
+   
+  chunksize<-min(length(LibraryRead),500000)
     
 ## accounting for small libraries
   if(chunksize < 500000){
@@ -45,7 +47,7 @@ if(grepl("msp", tolower(fileType))) {
       resultsTable<- LibraryParser(Library=Lib, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
                       CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                       Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
-                      cutoff=cutoff,massOffset=massOffset, IonTypes=IonTypes)
+                      cutoff=cutoff,massOffset=massOffset, IonTypes=IonTypes,deltaFragment=deltaFragment, oldMod= oldMod, newMod= newMod)
 
 
     }
@@ -56,7 +58,7 @@ if(grepl("msp", tolower(fileType))) {
          resultsTable<- SpXLibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
                          CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                          Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
-                         cutoff=cutoff, massOffset = massOffset,  IonTypes=IonTypes)
+                         cutoff=cutoff, massOffset = massOffset,  IonTypes=IonTypes, deltaFragment=deltaFragment, oldMod= oldMod, newMod= newMod)
       
     }
 
@@ -83,7 +85,7 @@ if(grepl("msp", tolower(fileType))) {
       SpXLibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
                        CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                        Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
-                       cutoff=cutoff, massOffset = massOffset,  IonTypes=IonTypes)
+                       cutoff=cutoff, massOffset = massOffset,  IonTypes=IonTypes,deltaFragment=deltaFragment, oldMod= oldMod, newMod= newMod)
     },
     x=NamesListX, y=NamesListY, z=LibraryPath,
     BPPARAM=SnowParam(workers = max(2,parallel::detectCores()-6)),SIMPLIFY = FALSE) %>% bind_rows
@@ -98,7 +100,7 @@ if(grepl("msp", tolower(fileType))) {
        LibraryParser(Library=Lib$V1, FragmentationMode=FragmentationMode, MassAnalyzer=MassAnalyzer,
                      CollisionEnergy=CollisionEnergy, CompoundClassArg=CompoundClass,
                      Filter=Filter, TMTPro=TMTPro, Source=fileType, topX=topX,
-                     cutoff=cutoff,massOffset=massOffset, IonTypes=IonTypes)
+                     cutoff=cutoff,massOffset=massOffset, IonTypes=IonTypes,deltaFragment=deltaFragment, oldMod= oldMod, newMod= newMod)
      },
      x=NamesListX, y=NamesListY, z=LibraryPath,
      BPPARAM=SnowParam(workers = max(2,parallel::detectCores()-6)),SIMPLIFY = FALSE) %>% bind_rows
