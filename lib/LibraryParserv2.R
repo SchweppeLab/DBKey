@@ -205,7 +205,7 @@ LibraryParser <- function(Library, FragmentationMode, MassAnalyzer, CollisionEne
   
 
   #Now check the votes, which will tell us if we need to handle the modification position adjustment
-  #thermo<-FALSE
+  thermo<-FALSE
   if(count_mods>count_ModString)
   {
     thermo<-TRUE
