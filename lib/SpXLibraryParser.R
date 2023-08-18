@@ -270,15 +270,53 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   
   NumPeaks<-(c(nameindexes[-1], length(Library)+1) - peakindexes)-1
   Charge<-as.numeric(str_sub(Names,-1 ))
-  sequence<- gsub("[^[:alpha:]]", "", Names)
-  sequence <- gsub("[[:lower:]]", "", sequence)
+
+sanitize_sequence <- function(Names) {
+  # Remove anything before the first decimal point
+  Names <- sub(".*?\\.", "", Names)
+  
+  # Remove anything after the last decimal point
+  Names <- sub("\\..*", "", Names)
+  
+  # Remove anything before "-"
+  Names <- sub(".*-", "", Names)
+  
+  # Remove anything after the last "/"
+  Names <- sub("/.*", "", Names)
+  
+  # Remove anything between square brackets
+  Names <- gsub("\\[.*?\\]", "", Names)
+  
+  # Remove any lowercase characters
+  Names <- gsub("[[:lower:]]", "", Names)
+  
+  return(Names)
+}
+  
+  sequence<- sapply(Names, sanitize_sequence)
+
   if(deltaFragment){
     for (i in seq_along(modforprecursor)) {
       
       modforprecursor[[i]]<-gsub(oldMod, newMod, modforprecursor[[i]])
     }
   }
-   totalprecursormod<- lapply(modforprecursor, function(x) {sum(as.numeric(x))})
+
+totalprecursormod <- lapply(modforprecursor, function(x) {
+    # Convert x to character if it's not already
+    x <- as.character(x)
+    
+    # Remove non-numeric and non-decimal point characters
+    sanitized_x <- gsub("[^0-9.]", "", x)
+    
+    # Filter out invalid or empty sanitized values
+    valid_indices <- sapply(sanitized_x, function(s) nchar(s) > 0 && grepl("^[0-9]*\\.?[0-9]*$", s))
+    
+    sanitized_values <- as.numeric(sanitized_x[valid_indices])
+    
+    sum(sanitized_values, na.rm = TRUE)
+})
+
   totalprecursormod[is.na(totalprecursormod)] <- 0
   PrecursorMasses<- mapply(function(x,y,z) { 
     MonoisotopicMass(ConvertPeptide(x), charge = y) + (z/y)}, 
@@ -396,10 +434,30 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
     Tags<-paste0("mods:", Modsoutput, " ", "ions:", PeakAnnotations)
     
   }
+
+sanitizeSequenceKeepCharge <- function(Names) {
+  # Remove anything before the first decimal point
+  Names <- sub(".*?\\.", "", Names)
   
-  Names<-    gsub("[^[:alpha:]]", "", Names)
+  # Remove anything after the last decimal point
+  Names <- sub("\\..*", "", Names)
+  
+  # Remove anything before "-"
+  Names <- sub(".*-", "", Names)
+  
+  # Remove anything after the first space character
+  Names <- sub(" .*", "", Names)
+  
+  # Remove anything between square brackets
+  Names <- gsub("\\[.*?\\]", "", Names)
+  
+  # Remove any lowercase characters
   Names <- gsub("[[:lower:]]", "", Names)
-  Names<- paste0(Names, "/", Charge)
+  
+  return(Names)
+}
+
+  Names <- sapply(Names, sanitizeSequenceKeepCharge)
   
   # Handle mapping of compound class:
   mappedCompoundClasses = ""
@@ -412,7 +470,7 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   }
 
   parallelTable<- data.table(blobMass=blobMass, blobInt=blobInt, 
-                             CompoundClass = "Yeast", Formula = Modsoutput, 
+                             CompoundClass = "", Formula = Modsoutput, 
                              PrecursorMasses=PrecursorMasses,Names=Names,Tags=Tags, FragmentationMode=FragmentationMode,
                              CollisionEnergy=CollisionEnergy, CompoundClass=mappedCompoundClasses,
                              iRT=RetentionTime, seq=sequence, z= Charge)
