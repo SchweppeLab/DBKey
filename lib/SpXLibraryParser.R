@@ -228,16 +228,17 @@ SpXLibraryParser <- function(Library, FragmentationMode, MassAnalyzer, Collision
   
   
   getFrag<- function(x){
-    match<- unique(stri_extract_all_regex(x, c("CID|HCD"), simplify = TRUE, omit_no_match = T))
-    match<-match[match!=""]
-    if(length(match)==2){
-      return(as.character(match[1]))
-    } else {
-      stop("Unable to determine Fragmentation method from file, please specify")
-    }
+  # Extract matches for "CID", "HCD", "ETD", "ECD", or "UVPD" that are surrounded by parentheses
+  match <- stri_extract_all_regex(x, "(?:\\()(CID|HCD|ETD|ECD|UVPD)(?:\\))", 
+                                  simplify = TRUE, omit_no_match = TRUE)
+  match<-match[match!=""]
+    # If there are parentheses in the results, replace them
+    match <- gsub("\\(", "", match)  # Replace open parenthesis
+    match <- gsub("\\)", "", match)  # Replace close parenthesis
+    return(match)
   }
   
-  FragmentationMode<- if(FragmentationMode== "Read From file"){
+  FragmentationMode<- if(FragmentationMode== "Read From file" || FragmentationMode == ""){
     getFrag(HeaderLists)
   }else{
     FragmentationMode }
